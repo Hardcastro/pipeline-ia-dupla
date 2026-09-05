@@ -1,0 +1,19 @@
+{
+  "name": "pipeline-ia-dupla",
+  "version": "1.0.0",
+  "description": "API Express com pipeline de duas IAs: otimizacao de prompt (IA 1) + execucao (IA 2), via API do Google Gemini.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.21.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}

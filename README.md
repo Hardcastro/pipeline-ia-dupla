@@ -22,6 +22,7 @@ src/
   prompts/executor.js       system instruction da IA 2
   services/pipeline.js      optimizePrompt() / executeTask() / runPipeline()
   routes/processar.js       POST /processar (+ alias /api/process-text)
+  routes/raiz.js            GET / (indice do servico)
   routes/health.js          GET /health
   middleware/errorHandler.js  traducao de erros do SDK para HTTP
 ```
@@ -78,6 +79,12 @@ Resposta `200`:
 `prompt_otimizado` e `resposta_final` — sao sempre strings.
 
 `POST /api/process-text` e um alias do mesmo handler.
+
+### `GET /`
+
+Indice do servico: lista os endpoints, o limite de entrada e os modelos em uso.
+Existe porque a URL publica e a primeira coisa que alguem abre no navegador —
+sem ela, o primeiro contato com a API seria um 404. Nao consome a API do Gemini.
 
 ### `GET /health`
 

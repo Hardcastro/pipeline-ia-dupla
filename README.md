@@ -195,6 +195,32 @@ EXECUTOR_THINKING=4096
   `REQUEST_TIMEOUT_MS`, para que uma geracao travada nao segure a conexao HTTP
   indefinidamente.
 
+## Producao
+
+No ar em <https://pipeline-ia-dupla.onrender.com> (Render, plano free, regiao Oregon,
+runtime Docker, branch `main` com auto-deploy).
+
+Latencia medida em 2026-09-05, mesma entrada:
+
+| Ambiente | IA 1 | IA 2 | Total |
+|---|---|---|---|
+| Local | ~2,0s | ~11s | ~13s |
+| Render free | ~2,0s | 25-63s | 28-82s |
+
+A IA 1 se comporta igual nos dois. A variancia toda esta na IA 2
+(`gemini-3.5-flash`), e **nao e retry** — os logs do Render registram uma unica
+linha `[retry]`, na IA 1, que se recuperou na segunda tentativa. As hipoteses
+restantes sao a variancia do proprio modelo (ja era o mais lento da sondagem) e
+o teto de 0.1 CPU do plano free.
+
+Se a latencia incomodar, na ordem de custo crescente: baixar `EXECUTOR_THINKING`
+para `medium`, trocar `EXECUTOR_MODEL` por um flash mais rapido, ou subir de
+plano. Os dois primeiros sao variaveis de ambiente no Render — nao exigem novo
+deploy de codigo.
+
+> O plano free hiberna apos inatividade: a primeira chamada depois disso soma
+> ~50s de cold start. `GET /health` acorda o servico sem consumir a API do Gemini.
+
 ## Deploy
 
 O `Dockerfile` incluido serve para qualquer plataforma de container. No Render,

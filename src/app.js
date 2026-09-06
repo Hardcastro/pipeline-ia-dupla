@@ -2,6 +2,7 @@ import express from "express";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
 import { processarRouter } from "./routes/processar.js";
+import { raizRouter } from "./routes/raiz.js";
 
 export function createApp() {
   const app = express();
@@ -9,6 +10,7 @@ export function createApp() {
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
 
+  app.use(raizRouter);
   app.use(healthRouter);
   app.use(processarRouter);
 

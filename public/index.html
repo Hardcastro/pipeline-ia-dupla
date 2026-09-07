@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline de IA dupla</title>
+<style>
+  :root {
+    --bg: #f7f7f5; --card: #fff; --ink: #1a1a18; --muted: #6b6b66;
+    --line: #e3e3dd; --accent: #3b5bdb; --accent-ink: #fff;
+    --warn-bg: #fff8e6; --warn-line: #f0d9a0; --err-bg: #fdeceb; --err-line: #f3bdb8;
+    --code-bg: #f0f0ec;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16161a; --card: #1e1e23; --ink: #ececE8; --muted: #9a9a94;
+      --line: #32323a; --accent: #7a92f0; --accent-ink: #16161a;
+      --warn-bg: #2b2412; --warn-line: #5c4a1e; --err-bg: #2e1a19; --err-line: #6b3330;
+      --code-bg: #26262c;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.94rem; }
+  .flow {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    font-size: 0.8rem; color: var(--muted); margin-bottom: 24px;
+  }
+  .flow span { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; }
+  label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 110px; padding: 13px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    font: inherit; resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
+    padding: 11px 22px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: 0.55; cursor: not-allowed; }
+  .count { color: var(--muted); font-size: 0.85rem; }
+  .count.over { color: #c0392b; font-weight: 600; }
+  .note, .err { border-radius: 10px; padding: 13px 15px; margin-top: 20px; font-size: 0.9rem; }
+  .note { background: var(--warn-bg); border: 1px solid var(--warn-line); }
+  .err { background: var(--err-bg); border: 1px solid var(--err-line); }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 20px 22px; margin-top: 20px;
+  }
+  .card h2 {
+    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); margin: 0 0 14px; font-weight: 700;
+  }
+  .out h3 { font-size: 1.02rem; margin: 20px 0 7px; }
+  .out h3:first-child { margin-top: 0; }
+  .out ul { padding-left: 20px; margin: 8px 0; }
+  .out p { margin: 9px 0; }
+  .out code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
+  .out hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+  pre.prompt {
+    white-space: pre-wrap; word-wrap: break-word; margin: 0; font: inherit;
+    color: var(--muted); font-size: 0.92rem;
+  }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); margin-top: 12px; }
+  .spin {
+    display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line);
+    border-top-color: var(--accent); border-radius: 50%; animation: sp 0.7s linear infinite;
+    vertical-align: -2px; margin-right: 7px;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  footer { margin-top: 40px; font-size: 0.82rem; color: var(--muted); }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Pipeline de IA dupla</h1>
+  <p class="sub">Escreva do seu jeito. Uma IA reescreve o pedido como prompt tecnico, outra executa.</p>
+
+  <div class="flow">
+    <span>seu texto</span> &rarr; <span>IA 1 reescreve</span> &rarr; <span>IA 2 executa</span> &rarr; <span>resposta</span>
+  </div>
+
+  <label for="texto">O que voce quer?</label>
+  <textarea id="texto" placeholder="ex: quero um site de vendas rapido"></textarea>
+  <div class="row">
+    <button id="btn">Processar</button>
+    <span class="count" id="count">0 / 8000</span>
+  </div>
+
+  <div id="status"></div>
+  <div id="saida"></div>
+
+  <footer>
+    API: <code>POST /processar</code> &middot; <a href="/api">indice JSON</a> &middot; <a href="/health">health</a>
+  </footer>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const texto = $("texto"), btn = $("btn"), count = $("count"), status = $("status"), saida = $("saida");
+const LIMITE = 8000;
+
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+texto.addEventListener("input", () => {
+  const n = texto.value.trim().length;
+  count.textContent = n + " / " + LIMITE;
+  count.className = "count" + (n > LIMITE ? " over" : "");
+});
+
+// Markdown minimo: a IA 2 responde em markdown, e exibir cru fica ilegivel.
+function render(md) {
+  const linhas = esc(md).split("\n");
+  let html = "", lista = false;
+  for (let l of linhas) {
+    l = l.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`(.+?)`/g, "<code>$1</code>");
+    const item = l.match(/^\s*[-*]\s+(.*)$/);
+    const head = l.match(/^(#{1,6})\s+(.*)$/);
+    if (item) {
+      if (!lista) { html += "<ul>"; lista = true; }
+      html += "<li>" + item[1] + "</li>";
+      continue;
+    }
+    if (lista) { html += "</ul>"; lista = false; }
+    if (head) html += "<h3>" + head[2].replace(/\*/g, "") + "</h3>";
+    else if (/^\s*---+\s*$/.test(l)) html += "<hr>";
+    else if (l.trim() !== "") html += "<p>" + l + "</p>";
+  }
+  if (lista) html += "</ul>";
+  return html;
+}
+
+let cron = null;
+function aguardando(t0) {
+  const s = Math.round((Date.now() - t0) / 1000);
+  let aviso = "";
+  if (s > 45) aviso = " O servico pode ter hibernado, ou a API do Gemini devolveu 503 e as tentativas automaticas estao rodando.";
+  else if (s > 15) aviso = " A IA 2 esta gerando a resposta.";
+  status.innerHTML = '<div class="note"><span class="spin"></span>Processando ha ' + s + "s." + aviso + "</div>";
+}
+
+btn.addEventListener("click", async () => {
+  const t = texto.value.trim();
+  if (!t) { status.innerHTML = '<div class="err">Escreva alguma coisa primeiro.</div>'; return; }
+  if (t.length > LIMITE) { status.innerHTML = '<div class="err">Texto acima do limite de ' + LIMITE + " caracteres.</div>"; return; }
+
+  btn.disabled = true;
+  saida.innerHTML = "";
+  const t0 = Date.now();
+  aguardando(t0);
+  cron = setInterval(() => aguardando(t0), 1000);
+
+  try {
+    const r = await fetch("/processar", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ texto: t }),
+    });
+    const j = await r.json();
+    clearInterval(cron);
+
+    if (!r.ok) {
+      const e = j.erro || {};
+      status.innerHTML = '<div class="err"><strong>' + esc(e.mensagem || "A requisicao falhou.") + "</strong><br><code>" +
+        esc(e.codigo || r.status) + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code></div>";
+      return;
+    }
+
+    const seg = ((Date.now() - t0) / 1000).toFixed(1);
+    status.innerHTML = '<div class="note">Pronto em ' + seg + "s.</div>";
+    const m = j.meta || {};
+    const linha = (e) => e ? '<div class="meta"><span>' + esc(e.model) + "</span><span>" + Math.round(e.latency_ms / 1000) + "s</span></div>" : "";
+    saida.innerHTML =
+      '<div class="card"><h2>Resposta final &middot; IA 2</h2><div class="out">' + render(j.resposta_final) + "</div>" + linha(m.execucao) + "</div>" +
+      '<div class="card"><h2>Prompt gerado pela IA 1 &middot; auditoria</h2><pre class="prompt">' + esc(j.prompt_otimizado) + "</pre>" + linha(m.otimizacao) + "</div>";
+  } catch (e) {
+    clearInterval(cron);
+    status.innerHTML = '<div class="err">Nao foi possivel falar com o servidor: ' + esc(e.message) + "</div>";
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+texto.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") btn.click();
+});
+</script>
+</body>
+</html>

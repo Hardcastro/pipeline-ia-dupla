@@ -22,7 +22,8 @@ src/
   prompts/executor.js       system instruction da IA 2
   services/pipeline.js      optimizePrompt() / executeTask() / runPipeline()
   routes/processar.js       POST /processar (+ alias /api/process-text)
-  routes/raiz.js            GET / (indice do servico)
+  routes/raiz.js            GET /api (indice JSON)
+public/index.html           interface web servida em /
   routes/health.js          GET /health
   middleware/errorHandler.js  traducao de erros do SDK para HTTP
 ```
@@ -82,9 +83,18 @@ Resposta `200`:
 
 ### `GET /`
 
-Indice do servico: lista os endpoints, o limite de entrada e os modelos em uso.
-Existe porque a URL publica e a primeira coisa que alguem abre no navegador —
-sem ela, o primeiro contato com a API seria um 404. Nao consome a API do Gemini.
+Interface web: um campo de texto, o resultado renderizado e o prompt intermediario
+exposto para auditoria. E o que a URL publica serve — abrir no navegador basta,
+nao precisa de cliente HTTP.
+
+Como uma requisicao pode levar de 10s a mais de 3 minutos (hibernacao do plano
+free + 503 do Gemini absorvidos pelo retry), a interface mostra um contador de
+segundos e explica o que esta acontecendo; sem isso, a espera parece travamento.
+
+### `GET /api`
+
+Indice legivel por maquina: endpoints, limite de entrada e modelos em uso.
+Nao consome a API do Gemini.
 
 ### `GET /health`
 

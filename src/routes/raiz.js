@@ -4,13 +4,13 @@ import { config } from "../config.js";
 export const raizRouter = Router();
 
 /**
- * Indice do servico.
+ * Indice da API em /api.
  *
- * A raiz existe porque a URL publica do Render e a primeira coisa que uma
- * pessoa abre no navegador - sem isso, o primeiro contato com a API e um 404.
- * Nao consome a API do Gemini.
+ * A raiz (/) agora serve a interface web; este endpoint mantem o descritor
+ * legivel por maquina, para quem integra em vez de clicar. Nao consome a API
+ * do Gemini.
  */
-raizRouter.get("/", (_req, res) => {
+raizRouter.get("/api", (_req, res) => {
   res.json({
     servico: "pipeline-ia-dupla",
     descricao:
@@ -24,7 +24,8 @@ raizRouter.get("/", (_req, res) => {
         retorna: ["prompt_otimizado", "resposta_final", "meta"],
       },
       { metodo: "GET", caminho: "/health", descricao: "Liveness probe." },
-      { metodo: "GET", caminho: "/", descricao: "Este indice." },
+      { metodo: "GET", caminho: "/api", descricao: "Este indice." },
+      { metodo: "GET", caminho: "/", descricao: "Interface web." },
     ],
     exemplo:
       "curl -X POST " +

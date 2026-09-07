@@ -1,4 +1,6 @@
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { healthRouter } from "./routes/health.js";
 import { processarRouter } from "./routes/processar.js";
@@ -9,6 +11,11 @@ export function createApp() {
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "1mb" }));
+
+  // Interface web em /. Caminho derivado do modulo, nao do cwd: no container o
+  // processo pode subir de outro diretorio.
+  const raizDoProjeto = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  app.use(express.static(path.join(raizDoProjeto, "public")));
 
   app.use(raizRouter);
   app.use(healthRouter);

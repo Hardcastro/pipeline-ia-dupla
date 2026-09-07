@@ -25,6 +25,7 @@ src/
   routes/raiz.js            GET /api (indice JSON)
 public/index.html           interface web servida em /
   routes/health.js          GET /health
+  middleware/auth.js        senha compartilhada em tempo constante
   middleware/errorHandler.js  traducao de erros do SDK para HTTP
 ```
 
@@ -109,6 +110,28 @@ curl -s -X POST http://localhost:3000/processar -H 'Content-Type: application/js
 No Postman: `POST http://localhost:3000/processar`, Body -> raw -> JSON, com o
 mesmo corpo acima.
 
+## Acesso
+
+`POST /processar` (e o alias `/api/process-text`) exigem a senha definida em
+`ACESSO_SENHA`. Envie em `x-senha: <valor>` ou `Authorization: Bearer <valor>`:
+
+```bash
+curl -X POST https://pipeline-ia-dupla.onrender.com/processar   -H 'Content-Type: application/json' -H 'x-senha: SUA_SENHA'   -d '{"texto":"quero um site de vendas rapido"}'
+```
+
+`GET /`, `/api` e `/health` continuam abertos: a interface precisa carregar
+antes de pedir a senha, e o health check e sondado pela plataforma.
+
+A comparacao usa `timingSafeEqual` sobre o hash das duas pontas. Comparar com
+`===` vazaria o tamanho do prefixo correto pelo tempo de resposta, permitindo
+descobrir a senha caractere a caractere; o hash iguala os comprimentos, porque
+`timingSafeEqual` lanca excecao com buffers de tamanhos diferentes — e o
+proprio lancamento ja seria um sinal.
+
+> **Sem `ACESSO_SENHA` definida, a rota fica aberta** e o servidor avisa no
+> boot. E deliberado, para nao travar o desenvolvimento local — mas numa URL
+> publica significa qualquer pessoa gastando sua cota do Gemini.
+
 ## Erros
 
 Todo erro sai no formato:
@@ -121,6 +144,7 @@ Todo erro sai no formato:
 |---|---|---|
 | `validation_error` | 400 | `texto` ausente, vazio ou acima de `MAX_INPUT_CHARS` |
 | `invalid_json` | 400 | corpo nao e JSON valido |
+| `nao_autorizado` | 401 | senha ausente ou incorreta |
 | `rota_nao_encontrada` | 404 | rota inexistente |
 | `prompt_blocked` | 422 | entrada barrada pelos filtros (`promptFeedback.blockReason`) |
 | `content_blocked` | 422 | geracao interrompida por SAFETY / BLOCKLIST / PROHIBITED_CONTENT / SPII / RECITATION |

@@ -32,6 +32,7 @@ raizRouter.get("/api", (_req, res) => {
       "https://pipeline-ia-dupla.onrender.com/processar " +
       "-H 'Content-Type: application/json' " +
       "-d '{\"texto\":\"quero um site de vendas rapido\"}'",
+    requer_senha: Boolean(config.acessoSenha),
     modelos: {
       otimizacao: config.optimizer.model,
       execucao: config.executor.model,

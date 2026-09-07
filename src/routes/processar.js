@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { config } from "../config.js";
 import { ValidationError } from "../errors.js";
+import { exigirSenha } from "../middleware/auth.js";
 import { runPipeline } from "../services/pipeline.js";
 
 export const processarRouter = Router();
@@ -42,6 +43,6 @@ async function handler(req, res, next) {
   }
 }
 
-processarRouter.post("/processar", handler);
+processarRouter.post("/processar", exigirSenha, handler);
 // Alias equivalente, para quem ja integrou com esse caminho.
-processarRouter.post("/api/process-text", handler);
+processarRouter.post("/api/process-text", exigirSenha, handler);

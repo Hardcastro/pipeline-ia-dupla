@@ -10,6 +10,9 @@ export function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
+  // A plataforma termina o TLS antes do processo; sem isso req.protocol
+  // reportaria "http" mesmo em requisicoes https.
+  app.set("trust proxy", 1);
   app.use(express.json({ limit: "1mb" }));
 
   // Interface web em /. Caminho derivado do modulo, nao do cwd: no container o

@@ -10,7 +10,7 @@ export const raizRouter = Router();
  * legivel por maquina, para quem integra em vez de clicar. Nao consome a API
  * do Gemini.
  */
-raizRouter.get("/api", (_req, res) => {
+raizRouter.get("/api", (req, res) => {
   res.json({
     servico: "pipeline-ia-dupla",
     descricao:
@@ -33,9 +33,10 @@ raizRouter.get("/api", (_req, res) => {
       { metodo: "GET", caminho: "/api", descricao: "Este indice." },
       { metodo: "GET", caminho: "/", descricao: "Interface web." },
     ],
+    // Derivado do proprio request: o exemplo acompanha onde o servico estiver
+    // hospedado, em vez de fixar uma instancia no codigo.
     exemplo:
-      "curl -X POST " +
-      "https://pipeline-ia-dupla.onrender.com/processar " +
+      `curl -X POST ${req.protocol}://${req.get("host")}/processar ` +
       "-H 'Content-Type: application/json' " +
       "-d '{\"texto\":\"quero um site de vendas rapido\"}'",
     requer_senha: Boolean(config.acessoSenha),

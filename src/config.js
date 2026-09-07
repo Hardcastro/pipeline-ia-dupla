@@ -60,7 +60,7 @@ export const config = {
   },
 
   executor: {
-    model: process.env.EXECUTOR_MODEL || "gemini-3.5-flash",
+    model: process.env.EXECUTOR_MODEL || "gemini-3.1-flash-lite",
     thinking: readThinking("EXECUTOR_THINKING", "high"),
     maxOutputTokens: readInt("EXECUTOR_MAX_OUTPUT_TOKENS", 32_768),
   },

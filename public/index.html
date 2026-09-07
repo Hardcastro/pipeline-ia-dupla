@@ -9,8 +9,7 @@
     --bg: #faf9f7; --card: #fff; --ink: #17161a; --ink-2: #4a4852; --muted: #83808e;
     --line: #e6e3de; --line-2: #efece7;
     --accent: #5b4bd6; --accent-soft: #efecfd; --accent-ink: #fff;
-    --ok: #1f8a54; --ok-soft: #e8f6ee;
-    --warn: #9a6a10; --warn-soft: #fdf3e0;
+    --ok: #1f8a54; --warn: #9a6a10; --warn-soft: #fdf3e0;
     --err: #b3372e; --err-soft: #fceceb;
     --code-bg: #f4f2ee;
     --shadow: 0 1px 2px rgba(20,18,30,.05), 0 8px 24px -12px rgba(20,18,30,.14);
@@ -20,8 +19,7 @@
       --bg: #121116; --card: #1a1920; --ink: #f0eef2; --ink-2: #c3bfcc; --muted: #8d8999;
       --line: #2c2a35; --line-2: #24222c;
       --accent: #a094ff; --accent-soft: #241f45; --accent-ink: #16141f;
-      --ok: #5fd39a; --ok-soft: #16291f;
-      --warn: #e0b25c; --warn-soft: #2a2213;
+      --ok: #5fd39a; --warn: #e0b25c; --warn-soft: #2a2213;
       --err: #f0928a; --err-soft: #2e1a19;
       --code-bg: #221f2a;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
@@ -71,6 +69,15 @@
   }
   .chip:hover { border-color: var(--accent); color: var(--accent); }
 
+  .opcao {
+    display: flex; align-items: flex-start; gap: 10px; margin-top: 16px;
+    padding: 12px 14px; border: 1px solid var(--line-2); border-radius: 11px; background: var(--bg);
+    cursor: pointer;
+  }
+  .opcao input { margin: 3px 0 0; accent-color: var(--accent); width: 16px; height: 16px; flex: none; }
+  .opcao .t { font-size: 0.88rem; font-weight: 600; }
+  .opcao .d { font-size: 0.82rem; color: var(--muted); }
+
   .barra { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
   button.principal {
     background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px;
@@ -79,10 +86,14 @@
   button.principal:hover:not(:disabled) { opacity: .9; }
   button.principal:active:not(:disabled) { transform: translateY(1px); }
   button.principal:disabled { opacity: .5; cursor: not-allowed; }
+  button.secundaria {
+    background: transparent; color: var(--ink-2); border: 1px solid var(--line);
+    border-radius: 10px; padding: 11px 18px; font: inherit; cursor: pointer;
+  }
+  button.secundaria:hover { border-color: var(--accent); color: var(--accent); }
   .dica { color: var(--muted); font-size: 0.8rem; }
   .dica.over { color: var(--err); font-weight: 600; }
 
-  /* Trilha das duas etapas */
   .trilha { display: grid; gap: 10px; }
   .etapa {
     display: flex; align-items: flex-start; gap: 13px; padding: 13px 15px;
@@ -90,25 +101,22 @@
     transition: border-color .2s, background .2s;
   }
   .etapa[data-estado="ativa"] { border-color: var(--accent); background: var(--accent-soft); }
-  .etapa[data-estado="feita"] { border-color: var(--line); }
   .etapa[data-estado="espera"] { opacity: .5; }
   .bolha {
     flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; margin-top: 1px;
     border: 2px solid var(--line); display: grid; place-items: center;
     font-size: 0.68rem; font-weight: 700; color: var(--muted);
   }
-  .etapa[data-estado="ativa"] .bolha { border-color: var(--accent); color: var(--accent); animation: pulso 1.4s ease-in-out infinite; }
+  .etapa[data-estado="ativa"] .bolha { border-color: var(--accent); color: var(--accent); }
   .etapa[data-estado="feita"] .bolha { border-color: var(--ok); background: var(--ok); color: var(--card); }
-  @keyframes pulso { 0%,100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
   .etapa .txt { flex: 1; min-width: 0; }
   .etapa .nome { font-weight: 600; font-size: 0.92rem; }
   .etapa .det { color: var(--muted); font-size: 0.82rem; }
   .etapa .tempo { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
 
   .aviso {
-    display: flex; gap: 9px; align-items: flex-start; font-size: 0.85rem;
-    background: var(--warn-soft); color: var(--warn); border-radius: 9px;
-    padding: 9px 12px; margin-top: 9px; border: 1px solid transparent;
+    font-size: 0.85rem; background: var(--warn-soft); color: var(--warn);
+    border-radius: 9px; padding: 9px 12px; margin-top: 9px;
   }
   .erro {
     background: var(--err-soft); color: var(--err); border-radius: 12px;
@@ -116,7 +124,7 @@
   }
   .erro code { background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 5px; font-size: 0.85em; }
 
-  .resultado { margin-top: 18px; animation: entra .35s ease both; }
+  .resultado { animation: entra .35s ease both; }
   @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   .cab {
     display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -141,16 +149,41 @@
   .out p { margin: 10px 0; }
   .out code { background: var(--code-bg); padding: 1.5px 6px; border-radius: 5px; font-size: 0.88em; }
   .out hr { border: 0; border-top: 1px solid var(--line-2); margin: 20px 0; }
+  /* Cursor piscando enquanto o texto ainda esta chegando */
+  .out.escrevendo > :last-child::after {
+    content: ""; display: inline-block; width: 2px; height: 1em; margin-left: 3px;
+    background: var(--accent); vertical-align: -2px; animation: pisca 1s steps(2) infinite;
+  }
+  @keyframes pisca { 50% { opacity: 0; } }
+  .pensando { color: var(--muted); font-size: 0.92rem; font-style: italic; }
+
   pre.prompt {
     white-space: pre-wrap; word-wrap: break-word; margin: 0; font: inherit;
     font-size: 0.92rem; color: var(--ink-2); background: var(--bg);
     border-radius: 10px; padding: 15px; border: 1px solid var(--line-2);
   }
+  textarea.editor { min-height: 190px; font-size: 0.92rem; line-height: 1.55; }
   .rodape-card {
     display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
     font-size: 0.78rem; color: var(--muted); margin-top: 14px;
   }
   .rodape-card span { background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 8px; }
+
+  .hist h2 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; font-weight: 700; }
+  .hist ol { list-style: none; margin: 0; padding: 0; }
+  .hist li {
+    display: flex; align-items: center; gap: 12px; padding: 10px 0;
+    border-top: 1px solid var(--line-2);
+  }
+  .hist li:first-child { border-top: 0; }
+  .hist .abrir {
+    flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 0;
+    font: inherit; color: var(--ink); cursor: pointer;
+  }
+  .hist .abrir:hover .titulo { color: var(--accent); }
+  .hist .titulo { font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist .quando { font-size: 0.78rem; color: var(--muted); }
+  .vazio { color: var(--muted); font-size: 0.88rem; }
 
   footer { margin-top: 36px; font-size: 0.82rem; color: var(--muted); }
   footer a { color: var(--accent); text-decoration: none; }
@@ -166,7 +199,7 @@
   <header>
     <div class="marca"><b></b> duas IAs em sequencia</div>
     <h1>Diga do seu jeito.<br>A IA traduz para a IA.</h1>
-    <p class="sub">A primeira reescreve seu pedido como um prompt tecnico e detalhado. A segunda executa esse prompt. Voce ve as duas coisas.</p>
+    <p class="sub">A primeira reescreve seu pedido como um prompt tecnico e detalhado. A segunda executa esse prompt. Voce ve as duas coisas &mdash; e pode editar o meio do caminho.</p>
   </header>
 
   <div class="painel">
@@ -180,27 +213,39 @@
 
     <div class="exemplos" id="exemplos"></div>
 
+    <label class="opcao" for="revisar">
+      <input type="checkbox" id="revisar">
+      <span>
+        <span class="t">Revisar o prompt antes de executar</span>
+        <span class="d">Para a IA 1, mostra o prompt para voce editar, e so entao chama a IA 2.</span>
+      </span>
+    </label>
+
     <div class="barra">
       <button class="principal" id="btn">Processar</button>
-      <span class="dica" id="dica">Ctrl+Enter envia</span>
+      <span class="dica">Ctrl+Enter envia</span>
       <span class="dica" id="count">0 / 8000</span>
     </div>
   </div>
 
   <div id="progresso"></div>
+  <div id="revisao"></div>
   <div id="saida"></div>
+  <div id="historico"></div>
 
   <footer>
     <a href="/api">API</a> &middot; <a href="/health">health</a> &middot;
-    <code>POST /processar</code> para integrar, <code>/processar/stream</code> para progresso ao vivo
+    <code>/processar</code> &middot; <code>/processar/stream</code> &middot;
+    <code>/otimizar</code> &middot; <code>/executar/stream</code>
   </footer>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const texto = $("texto"), btn = $("btn"), count = $("count"), progresso = $("progresso"),
-      saida = $("saida"), senha = $("senha"), areaSenha = $("areaSenha");
-const LIMITE = 8000, GUARDA = "pipeline-ia-dupla:senha";
+const texto = $("texto"), btn = $("btn"), count = $("count"), revisar = $("revisar"),
+      progresso = $("progresso"), revisao = $("revisao"), saida = $("saida"),
+      historico = $("historico"), senha = $("senha"), areaSenha = $("areaSenha");
+const LIMITE = 8000, GUARDA = "pipeline-ia-dupla:senha", HIST = "pipeline-ia-dupla:historico", MAX_HIST = 10;
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
 const EXEMPLOS = [
@@ -223,7 +268,6 @@ texto.addEventListener("input", () => {
   count.className = "dica" + (n > LIMITE ? " over" : "");
 });
 
-// O campo de senha so aparece se o servidor exigir. Um 401 ja revelaria isso.
 (async () => {
   try {
     const j = await (await fetch("/api")).json();
@@ -256,158 +300,307 @@ function render(md) {
   return html;
 }
 
-function cartao(titulo, corpo, meta, texto_para_copiar) {
+function cartao(titulo, corpo, meta, paraCopiar, extraClasse) {
   const id = "c" + Math.random().toString(36).slice(2, 8);
-  const etiquetas = (meta || []).map((m) => "<span>" + esc(m) + "</span>").join("");
-  return '<div class="painel resultado"><div class="cab"><h2>' + esc(titulo) + "</h2>" +
-    '<button class="copiar" data-copia="' + id + '">copiar</button></div>' +
-    corpo + '<textarea id="' + id + '" hidden>' + esc(texto_para_copiar) + "</textarea>" +
+  const etiquetas = (meta || []).filter(Boolean).map((m) => "<span>" + esc(m) + "</span>").join("");
+  return '<div class="painel resultado ' + (extraClasse || "") + '"><div class="cab"><h2>' + esc(titulo) + "</h2>" +
+    '<button class="copiar" data-copia="' + id + '">copiar</button></div>' + corpo +
+    '<textarea id="' + id + '" hidden>' + esc(paraCopiar) + "</textarea>" +
     (etiquetas ? '<div class="rodape-card">' + etiquetas + "</div>" : "") + "</div>";
 }
 
 document.addEventListener("click", async (ev) => {
   const b = ev.target.closest(".copiar");
   if (!b) return;
-  const alvo = document.getElementById(b.dataset.copia);
   try {
-    await navigator.clipboard.writeText(alvo.value);
+    await navigator.clipboard.writeText(document.getElementById(b.dataset.copia).value);
     b.textContent = "copiado"; b.classList.add("ok");
     setTimeout(() => { b.textContent = "copiar"; b.classList.remove("ok"); }, 1600);
   } catch { b.textContent = "falhou"; }
 });
 
-// ---- Trilha de progresso ----
-const ETAPAS = { otimizacao: "IA 1 &middot; reescrevendo seu pedido", execucao: "IA 2 &middot; executando o prompt" };
-let estado, t0, cron, avisos;
+// ---------- Historico (so no navegador de quem usa) ----------
+const lerHist = () => { try { return JSON.parse(localStorage.getItem(HIST) || "[]"); } catch { return []; } };
+function salvarHist(item) {
+  try {
+    const lista = [item, ...lerHist()].slice(0, MAX_HIST);
+    localStorage.setItem(HIST, JSON.stringify(lista));
+  } catch {}
+  pintarHist();
+}
+function pintarHist() {
+  const lista = lerHist();
+  if (!lista.length) { historico.innerHTML = ""; return; }
+  historico.innerHTML = '<div class="painel hist"><div class="cab"><h2>Execucoes anteriores</h2>' +
+    '<button class="copiar" id="limparHist">limpar</button></div><ol>' +
+    lista.map((h, i) =>
+      '<li><button class="abrir" data-i="' + i + '"><div class="titulo">' + esc(h.texto) + "</div>" +
+      '<div class="quando">' + esc(h.quando) + " &middot; " + h.chars + " chars" +
+      (h.editado ? " &middot; prompt editado" : "") + "</div></button></li>").join("") +
+    "</ol></div>";
+}
+historico.addEventListener("click", (ev) => {
+  if (ev.target.id === "limparHist") {
+    try { localStorage.removeItem(HIST); } catch {}
+    pintarHist();
+    return;
+  }
+  const b = ev.target.closest(".abrir");
+  if (!b) return;
+  const h = lerHist()[+b.dataset.i];
+  if (!h) return;
+  progresso.innerHTML = ""; revisao.innerHTML = "";
+  mostrarResultado(h.resposta, h.prompt, h.meta, true);
+  saida.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+pintarHist();
 
-function pintarTrilha() {
+// ---------- Trilha ----------
+const ETAPAS = { otimizacao: "IA 1 &middot; reescrevendo seu pedido", execucao: "IA 2 &middot; executando o prompt" };
+let estado, t0, cron, avisos, comecouTexto;
+
+function pintarTrilha(quais) {
   const s = Math.round((Date.now() - t0) / 1000);
   const linha = (chave, n) => {
     const e = estado[chave];
+    if (!e) return "";
     const det = e.estado === "feita" ? "concluida em " + (e.ms / 1000).toFixed(1) + "s"
-      : e.estado === "ativa" ? (chave === "otimizacao" ? "costuma levar poucos segundos" : "a parte demorada; pode passar de um minuto")
-      : "aguardando";
+      : e.estado === "ativa"
+        ? (chave === "otimizacao" ? "costuma levar poucos segundos"
+          : comecouTexto ? "escrevendo a resposta" : "raciocinando antes de escrever")
+        : "aguardando";
     return '<div class="etapa" data-estado="' + e.estado + '"><div class="bolha">' +
       (e.estado === "feita" ? "&#10003;" : n) + '</div><div class="txt"><div class="nome">' + ETAPAS[chave] +
       '</div><div class="det">' + det + "</div></div>" +
       (e.estado === "ativa" ? '<div class="tempo">' + s + "s</div>" : "") + "</div>";
   };
-  progresso.innerHTML = '<div class="painel"><div class="trilha">' + linha("otimizacao", 1) + linha("execucao", 2) + "</div>" +
+  progresso.innerHTML = '<div class="painel"><div class="trilha">' +
+    quais.map((q, i) => linha(q, i + 1)).join("") + "</div>" +
     avisos.map((a) => '<div class="aviso">' + a + "</div>").join("") + "</div>";
 }
 
-function iniciarTrilha() {
-  estado = { otimizacao: { estado: "espera" }, execucao: { estado: "espera" } };
-  avisos = []; t0 = Date.now();
-  pintarTrilha();
-  cron = setInterval(pintarTrilha, 1000);
+function iniciarTrilha(quais) {
+  estado = {}; quais.forEach((q) => { estado[q] = { estado: "espera" }; });
+  avisos = []; comecouTexto = false; t0 = Date.now();
+  pintarTrilha(quais);
+  clearInterval(cron);
+  cron = setInterval(() => pintarTrilha(quais), 1000);
 }
 
-function tratarEvento(ev, dados) {
-  if (ev.tipo === "etapa") {
-    if (ev.estado === "inicio") estado[ev.etapa].estado = "ativa";
-    if (ev.estado === "fim") {
-      estado[ev.etapa] = { estado: "feita", ms: ev.latency_ms };
-      if (ev.etapa === "otimizacao") {
-        dados.prompt = ev.prompt_otimizado;
-        // Aparece assim que existe, sem esperar a IA 2.
-        saida.innerHTML = cartao("Prompt gerado pela IA 1", '<pre class="prompt">' + esc(ev.prompt_otimizado) + "</pre>",
-          [ev.model, (ev.latency_ms / 1000).toFixed(1) + "s"], ev.prompt_otimizado);
-      }
+function falhar(titulo, detalhe) {
+  clearInterval(cron);
+  progresso.innerHTML = '<div class="painel"><div class="erro"><strong>' + esc(titulo) + "</strong>" +
+    (detalhe ? "<br>" + detalhe : "") + "</div></div>";
+}
+
+// ---------- Rede ----------
+function cabecalhos() {
+  const h = { "Content-Type": "application/json" };
+  if (!areaSenha.hidden && senha.value) h["x-senha"] = senha.value;
+  return h;
+}
+
+async function checarResposta(r) {
+  if (r.status === 401) {
+    areaSenha.hidden = false;
+    try { localStorage.removeItem(GUARDA); } catch {}
+    senha.focus();
+    const j = await r.json().catch(() => ({}));
+    falhar((j.erro || {}).mensagem || "Senha incorreta.",
+      "O valor precisa bater com a variavel <code>ACESSO_SENHA</code> do servidor.");
+    return false;
+  }
+  if (!r.ok) {
+    const j = await r.json().catch(() => ({}));
+    const e = j.erro || {};
+    falhar(e.mensagem || "A requisicao falhou.", "<code>" + esc(e.codigo || r.status) + "</code>");
+    return false;
+  }
+  if (!areaSenha.hidden && senha.value) {
+    try { localStorage.setItem(GUARDA, senha.value); } catch {}
+  }
+  return true;
+}
+
+/** Le um corpo SSE: os chunks podem partir um evento no meio. */
+async function consumirStream(r, aoEvento) {
+  const leitor = r.body.getReader();
+  const dec = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await leitor.read();
+    if (done) break;
+    buffer += dec.decode(value, { stream: true });
+    const partes = buffer.split("\n\n");
+    buffer = partes.pop();
+    for (const parte of partes) {
+      const linha = parte.split("\n").find((l) => l.startsWith("data: "));
+      if (linha) aoEvento(JSON.parse(linha.slice(6)));
     }
-    pintarTrilha();
-  } else if (ev.tipo === "retry") {
-    avisos.push("A API do Gemini respondeu <strong>" + ev.status + "</strong> na etapa de " + esc(ev.etapa) +
-      " (tentativa " + ev.tentativa + " de " + ev.total + "). Tentando de novo &mdash; e por isso que esta demorando.");
-    pintarTrilha();
   }
 }
 
-btn.addEventListener("click", async () => {
-  const t = texto.value.trim();
-  if (!t) { progresso.innerHTML = '<div class="erro">Escreva alguma coisa primeiro.</div>'; return; }
-  if (t.length > LIMITE) { progresso.innerHTML = '<div class="erro">Texto acima do limite de ' + LIMITE + " caracteres.</div>"; return; }
+// ---------- Exibicao ----------
+function mostrarResultado(resposta, prompt, meta, doHistorico) {
+  const m = meta || {};
+  const ex = m.execucao || {}, ot = m.otimizacao || {};
+  saida.innerHTML =
+    cartao("Resposta final · IA 2", '<div class="out">' + render(resposta) + "</div>",
+      [ex.model, ex.latency_ms ? (ex.latency_ms / 1000).toFixed(1) + "s" : null,
+       ex.usage ? ex.usage.candidates_tokens + " tokens" : null,
+       doHistorico ? "do historico" : null], resposta) +
+    cartao("Prompt usado pela IA 2", '<pre class="prompt">' + esc(prompt) + "</pre>",
+      [ot.model, ot.latency_ms ? (ot.latency_ms / 1000).toFixed(1) + "s" : null], prompt);
+}
 
-  btn.disabled = true; saida.innerHTML = "";
-  iniciarTrilha();
-  const dados = {};
+// Renderizar markdown a cada delta seria caro; 120ms basta para parecer continuo.
+let pendente = null, ultimoDesenho = 0;
+function desenharParcial(txt) {
+  pendente = txt;
+  const agora = Date.now();
+  if (agora - ultimoDesenho < 120) return;
+  ultimoDesenho = agora;
+  const alvo = saida.querySelector(".out");
+  if (alvo) alvo.innerHTML = render(pendente);
+}
 
-  const falhar = (titulo, detalhe) => {
-    clearInterval(cron);
-    progresso.innerHTML = '<div class="erro"><strong>' + esc(titulo) + "</strong>" + (detalhe ? "<br>" + detalhe : "") + "</div>";
-  };
+function prepararSaidaParcial() {
+  saida.innerHTML = cartao("Resposta final · IA 2",
+    '<div class="out escrevendo"><p class="pensando">a IA 2 esta raciocinando antes de escrever...</p></div>',
+    [], "", "");
+}
 
-  try {
-    const cabecalhos = { "Content-Type": "application/json" };
-    if (!areaSenha.hidden && senha.value) cabecalhos["x-senha"] = senha.value;
+// ---------- Fluxos ----------
+async function rodarStream(url, corpo, quais, aoFim) {
+  iniciarTrilha(quais);
+  let texto_parcial = "";
+  let finalizou = false;
 
-    const r = await fetch("/processar/stream", {
-      method: "POST", headers: cabecalhos, body: JSON.stringify({ texto: t }),
-    });
+  const r = await fetch(url, { method: "POST", headers: cabecalhos(), body: JSON.stringify(corpo) });
+  if (!(await checarResposta(r))) return false;
 
-    if (r.status === 401) {
-      areaSenha.hidden = false;
-      try { localStorage.removeItem(GUARDA); } catch {}
-      senha.focus();
-      const j = await r.json().catch(() => ({}));
-      return falhar((j.erro || {}).mensagem || "Senha incorreta.",
-        "O valor precisa bater com a variavel <code>ACESSO_SENHA</code> do servidor.");
-    }
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      const e = j.erro || {};
-      return falhar(e.mensagem || "A requisicao falhou.", "<code>" + esc(e.codigo || r.status) + "</code>");
-    }
-
-    if (!areaSenha.hidden && senha.value) {
-      try { localStorage.setItem(GUARDA, senha.value); } catch {}
-    }
-
-    // SSE via fetch: os chunks podem partir um evento no meio, entao acumula
-    // e so consome ate o ultimo separador completo.
-    const leitor = r.body.getReader();
-    const dec = new TextDecoder();
-    let buffer = "", finalizou = false;
-
-    while (true) {
-      const { value, done } = await leitor.read();
-      if (done) break;
-      buffer += dec.decode(value, { stream: true });
-      const partes = buffer.split("\n\n");
-      buffer = partes.pop();
-      for (const parte of partes) {
-        const linha = parte.split("\n").find((l) => l.startsWith("data: "));
-        if (!linha) continue;
-        const ev = JSON.parse(linha.slice(6));
-
-        if (ev.tipo === "fim") {
-          finalizou = true;
-          clearInterval(cron);
-          estado.execucao = { estado: "feita", ms: ev.meta.execucao.latency_ms };
-          pintarTrilha();
-          const m = ev.meta;
-          saida.innerHTML =
-            cartao("Resposta final · IA 2", '<div class="out">' + render(ev.resposta_final) + "</div>",
-              [m.execucao.model, (m.execucao.latency_ms / 1000).toFixed(1) + "s",
-               m.execucao.usage.candidates_tokens + " tokens"], ev.resposta_final) +
-            cartao("Prompt gerado pela IA 1", '<pre class="prompt">' + esc(ev.prompt_otimizado) + "</pre>",
-              [m.otimizacao.model, (m.otimizacao.latency_ms / 1000).toFixed(1) + "s"], ev.prompt_otimizado);
-        } else if (ev.tipo === "erro") {
-          finalizou = true;
-          const e = ev.erro || {};
-          falhar(e.mensagem || "O pipeline falhou.",
-            "<code>" + esc(e.codigo || "erro") + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code>");
-        } else {
-          tratarEvento(ev, dados);
+  await consumirStream(r, (ev) => {
+    if (ev.tipo === "etapa") {
+      if (ev.estado === "inicio") {
+        estado[ev.etapa].estado = "ativa";
+        if (ev.etapa === "execucao") { texto_parcial = ""; comecouTexto = false; prepararSaidaParcial(); }
+      }
+      if (ev.estado === "fim") {
+        estado[ev.etapa] = { estado: "feita", ms: ev.latency_ms };
+        if (ev.etapa === "otimizacao") {
+          revisao.innerHTML = cartao("Prompt gerado pela IA 1",
+            '<pre class="prompt">' + esc(ev.prompt_otimizado) + "</pre>",
+            [ev.model, (ev.latency_ms / 1000).toFixed(1) + "s"], ev.prompt_otimizado);
         }
       }
+      pintarTrilha(quais);
+    } else if (ev.tipo === "retry") {
+      // Uma nova tentativa recomeca a geracao: o texto parcial nao vale mais.
+      if (ev.etapa === "execucao") { texto_parcial = ""; comecouTexto = false; prepararSaidaParcial(); }
+      avisos.push("A API do Gemini respondeu <strong>" + ev.status + "</strong> na etapa de " + esc(ev.etapa) +
+        " (tentativa " + ev.tentativa + " de " + ev.total + "). Tentando de novo &mdash; e por isso que esta demorando.");
+      pintarTrilha(quais);
+    } else if (ev.tipo === "delta") {
+      if (!comecouTexto) { comecouTexto = true; pintarTrilha(quais); }
+      texto_parcial += ev.texto;
+      desenharParcial(texto_parcial);
+    } else if (ev.tipo === "fim") {
+      finalizou = true;
+      clearInterval(cron);
+      if (estado.execucao) estado.execucao = { estado: "feita", ms: ev.meta.execucao.latency_ms };
+      pintarTrilha(quais);
+      revisao.innerHTML = "";
+      mostrarResultado(ev.resposta_final, ev.prompt_otimizado, ev.meta, false);
+      aoFim(ev);
+    } else if (ev.tipo === "erro") {
+      finalizou = true;
+      const e = ev.erro || {};
+      falhar(e.mensagem || "O pipeline falhou.",
+        "<code>" + esc(e.codigo || "erro") + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code>");
     }
-    if (!finalizou) falhar("A conexao caiu antes de o pipeline terminar.", "Tente de novo.");
+  });
+
+  if (!finalizou) falhar("A conexao caiu antes de o pipeline terminar.", "Tente de novo.");
+  return finalizou;
+}
+
+function registrar(entrada, ev, editado) {
+  salvarHist({
+    texto: entrada.slice(0, 120),
+    prompt: ev.prompt_otimizado,
+    resposta: ev.resposta_final.slice(0, 20000),
+    meta: ev.meta,
+    chars: ev.resposta_final.length,
+    editado,
+    quando: new Date().toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+  });
+}
+
+async function fluxoDireto(entrada) {
+  await rodarStream("/processar/stream", { texto: entrada }, ["otimizacao", "execucao"],
+    (ev) => registrar(entrada, ev, false));
+}
+
+async function fluxoRevisado(entrada) {
+  iniciarTrilha(["otimizacao"]);
+  estado.otimizacao.estado = "ativa";
+  pintarTrilha(["otimizacao"]);
+
+  const r = await fetch("/otimizar", { method: "POST", headers: cabecalhos(), body: JSON.stringify({ texto: entrada }) });
+  if (!(await checarResposta(r))) return;
+  const j = await r.json();
+  clearInterval(cron);
+  estado.otimizacao = { estado: "feita", ms: Date.now() - t0 };
+  pintarTrilha(["otimizacao"]);
+
+  revisao.innerHTML =
+    '<div class="painel resultado"><div class="cab"><h2>Revise o prompt antes de executar</h2>' +
+    '<button class="copiar" data-copia="editor">copiar</button></div>' +
+    '<textarea class="editor" id="editor"></textarea>' +
+    '<div class="barra"><button class="principal" id="executar">Executar com este prompt</button>' +
+    '<button class="secundaria" id="cancelar">Descartar</button>' +
+    '<span class="dica">o que voce escrever aqui vai direto para a IA 2</span></div></div>';
+  $("editor").value = j.prompt_otimizado;
+  $("editor").focus();
+  btn.disabled = false;
+}
+
+revisao.addEventListener("click", async (ev) => {
+  if (ev.target.id === "cancelar") { revisao.innerHTML = ""; progresso.innerHTML = ""; return; }
+  if (ev.target.id !== "executar") return;
+
+  const prompt = $("editor").value.trim();
+  if (!prompt) return;
+  const original = texto.value.trim();
+  revisao.innerHTML = "";
+  btn.disabled = true;
+  try {
+    await rodarStream("/executar/stream", { prompt }, ["execucao"],
+      (e) => registrar(original || prompt.slice(0, 80), e, true));
   } catch (e) {
     falhar("Nao foi possivel falar com o servidor.", esc(e.message));
   } finally {
     clearInterval(cron);
     btn.disabled = false;
+  }
+});
+
+btn.addEventListener("click", async () => {
+  const t = texto.value.trim();
+  if (!t) return falhar("Escreva alguma coisa primeiro.");
+  if (t.length > LIMITE) return falhar("Texto acima do limite de " + LIMITE + " caracteres.");
+
+  btn.disabled = true;
+  saida.innerHTML = ""; revisao.innerHTML = "";
+  try {
+    if (revisar.checked) await fluxoRevisado(t);
+    else await fluxoDireto(t);
+  } catch (e) {
+    falhar("Nao foi possivel falar com o servidor.", esc(e.message));
+  } finally {
+    clearInterval(cron);
+    // No fluxo revisado o botao volta quando o editor aparece.
+    if (!revisao.querySelector("#editor")) btn.disabled = false;
   }
 });
 

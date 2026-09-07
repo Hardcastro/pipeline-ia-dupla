@@ -1,399 +1,218 @@
-# Pipeline de IA dupla (Node.js + Express + Google Gemini)
+# Pipeline de IA dupla
 
-API que recebe um texto cru de usuario leigo e o processa em duas camadas:
+**Uma IA reescreve o seu pedido. Outra executa.** O usuario escreve *"quero um site de vendas rapido"* e recebe um plano tecnico completo — porque entre ele e o modelo final existe uma camada que transforma o pedido vago em um prompt estruturado.
 
+🔗 **[Ver funcionando](https://pipeline-ia-dupla.onrender.com)** &nbsp;·&nbsp; Node.js + Express + Google Gemini &nbsp;·&nbsp; [MIT](LICENSE)
+
+> Instancia gratuita no Render: se estiver hibernando, a primeira chamada leva ~50s a mais.
+
+---
+
+## O problema
+
+Modelos de linguagem respondem bem a prompts bons. Usuarios leigos escrevem pedidos vagos. A distancia entre as duas coisas costuma ser resolvida pedindo que a pessoa "escreva melhor" — o que nao acontece.
+
+Aqui essa traducao e feita por uma primeira IA, especializada em reescrever, antes de a segunda tentar responder.
+
+```mermaid
+flowchart LR
+    A["texto cru<br/><i>quero um site<br/>de vendas rapido</i>"] --> B["<b>IA 1</b><br/>engenheira de prompt<br/>~3s"]
+    B --> C["prompt estruturado<br/>Contexto · Objetivo<br/>Requisitos · Formato"]
+    C --> D["<b>IA 2</b><br/>executora<br/>10s a 60s"]
+    D --> E["resposta final"]
+    C -.->|"opcional:<br/>usuario edita"| C
 ```
-texto bruto  ->  IA 1 (Engenheira de Prompt)  ->  prompt otimizado  ->  IA 2 (Executora)  ->  resposta final
-```
 
-O retorno traz as duas pontas, para que o prompt intermediario fique disponivel
-para auditoria e log.
+A saida traz **as duas pontas**: a resposta final e o prompt intermediario. O prompt fica visivel para auditoria — e editavel, se o usuario quiser corrigir a interpretacao antes de gastar a segunda chamada.
+
+---
+
+## Decisoes de engenharia
+
+O que diferencia isto de um wrapper de duas chamadas de API:
+
+### A saida da IA 1 e forcada por schema, nao por instrucao
+
+Pedir "retorne exclusivamente o prompt" e depois limpar saudacoes com regex e fragil. A chamada usa `responseMimeType: "application/json"` + `responseJsonSchema` com um unico campo: **o modelo nao consegue emitir preambulo**. A restricao vive no decoder, nao na boa vontade dele. Ha fallback para o texto cru se o parse falhar.
+
+### Blindagem contra injecao de prompt
+
+O texto do usuario e conteudo de terceiros. Ele chega envelopado em `<texto_do_usuario>` e a system instruction declara aquele bloco como **dado, nao instrucao** — inclusive quando contem frases como *"ignore as instrucoes acima"*. A regra impede que o usuario sequestre a camada de reescrita.
+
+### Retry com backoff, porque a API falha de verdade
+
+A API do Gemini responde `503 "high demand"` com frequencia em uso normal, e o SDK `@google/genai` nao tem retry proprio. Ambas as camadas repetem em 500/502/503/504 com backoff exponencial + jitter.
+
+**429 fica de fora de proposito:** na pratica significa cota esgotada, e insistir so queima mais cota.
+
+### Bloqueio verificado nos dois pontos
+
+O Gemini barra conteudo na entrada (`promptFeedback.blockReason`) **e** durante a geracao (`candidates[0].finishReason`) — ambos com HTTP 200. Verificar so um deles produz resposta vazia silenciosa.
+
+### Comparacao de senha em tempo constante
+
+`===` em string vaza o tamanho do prefixo correto pelo tempo de resposta, o que permite descobrir a senha caractere a caractere. A verificacao usa `timingSafeEqual` sobre o hash das duas pontas — o hash iguala os comprimentos, porque `timingSafeEqual` lanca excecao com buffers diferentes, e o proprio lancamento seria um sinal.
+
+### A interface mostra o que o servidor sabe
+
+O pipeline leva de 10s a alguns minutos. Em vez de um spinner generico, um stream SSE emite eventos de etapa, de nova tentativa e de texto parcial. A pagina exibe o prompt da IA 1 assim que fica pronto (~5s) e, quando o Gemini falha, **explica o motivo da demora** em vez de deixar o usuario no escuro.
+
+---
+
+## O que a medicao mostrou
+
+Numeros reais, colhidos em producao — e que contrariaram hipoteses minhas pelo caminho:
+
+| Achado | Numero |
+|---|---|
+| Latencia da IA 2, mesma entrada, execucoes diferentes | 9s a 202s |
+| Causa da cauda longa | 503 do Gemini, **cada um levando ~60s para falhar** |
+| Custo do backoff programado | 862ms — irrelevante perto do tempo de espera pela falha |
+| Tempo raciocinando vs. escrevendo (resposta curta) | 46,4s pensando, 0,1s escrevendo |
+| Efeito de trocar o modelo da IA 2 | melhorou o melhor caso, piorou o pior — **sem ganho liquido** |
+
+Duas conclusoes que so apareceram porque os logs foram lidos em vez de presumidos:
+
+1. **A latencia nao vem da escolha de modelo.** A IA 1 usa o mesmo modelo, no mesmo processo e na mesma requisicao, e fica estavel em ~3s. A alavanca real e o nivel de raciocinio (`EXECUTOR_THINKING`), nao o modelo.
+2. **Disponibilidade de modelo medida em sondagem e um retrato do momento, nao uma propriedade estavel.** Um benchmark local favoreceu um modelo 3/3 contra 4/9; horas depois, em producao, o ranking se inverteu.
+
+O catalogo do Gemini tambem gira mais rapido que a documentacao: o `codegen_instructions.md` oficial do SDK ainda recomendava um modelo ja aposentado (404) e outro sem cota no tier gratuito (429). **Sondar `ai.models.list()` antes de fixar qualquer modelo** virou parte do processo.
+
+---
 
 ## Estrutura
 
 ```
 src/
-  index.js                  bootstrap do servidor + shutdown limpo
-  app.js                    montagem do Express
-  config.js                 leitura e validacao das variaveis de ambiente
-  errors.js                 AppError / ValidationError / PipelineError
-  gemini/client.js          cliente unico do SDK @google/genai
-  prompts/optimizer.js      system instruction da IA 1 + schema de saida
-  prompts/executor.js       system instruction da IA 2
-  services/pipeline.js      optimizePrompt() / executeTask() / runPipeline()
-  routes/processar.js       POST /processar (+ alias /api/process-text)
-  routes/raiz.js            GET /api (indice JSON)
-public/index.html           interface web servida em /
-  routes/health.js          GET /health
-  middleware/auth.js        senha compartilhada em tempo constante
-  middleware/errorHandler.js  traducao de erros do SDK para HTTP
+  index.js                    bootstrap + shutdown limpo (SIGTERM)
+  app.js                      montagem do Express
+  config.js                   env validado no boot, com falha cedo
+  errors.js                   AppError / ValidationError / PipelineError
+  gemini/client.js            cliente unico do SDK @google/genai
+  prompts/optimizer.js        system instruction da IA 1 + schema de saida
+  prompts/executor.js         system instruction da IA 2
+  services/pipeline.js        optimizePrompt / executeTask / runPipeline
+  middleware/auth.js          senha compartilhada em tempo constante
+  middleware/errorHandler.js  erros do SDK traduzidos para HTTP
+  routes/                     processar, otimizar, executar, health, indice
+public/index.html             interface web, sem build e sem dependencias
 ```
 
-## Como rodar
+Sem framework de front, sem etapa de build: um arquivo HTML servido pelo proprio Express.
 
-Requer Node 20 ou superior (exigencia do `@google/genai`).
+---
+
+## API
+
+| Rota | O que faz |
+|---|---|
+| `POST /processar` | pipeline completo, resposta unica |
+| `POST /processar/stream` | o mesmo, em SSE com progresso ao vivo |
+| `POST /otimizar` | so a IA 1 — devolve o prompt para revisao |
+| `POST /executar/stream` | so a IA 2, a partir de um prompt (editado ou nao) |
+| `GET /` | interface web |
+| `GET /api` | indice legivel por maquina |
+| `GET /health` | liveness probe, nao consome a API do Gemini |
 
 ```bash
-npm install
-cp .env.example .env   # e preencha GEMINI_API_KEY
-npm start
+curl -X POST https://pipeline-ia-dupla.onrender.com/processar \
+  -H 'Content-Type: application/json' \
+  -H 'x-senha: SUA_SENHA' \
+  -d '{"texto":"quero um site de vendas rapido"}'
 ```
-
-`npm run dev` sobe com `--watch` (reinicio automatico a cada alteracao).
-
-Chave de API: <https://aistudio.google.com/apikey>
-
-## Endpoints
-
-### `POST /processar`
-
-Requisicao:
-
-```json
-{ "texto": "quero um site de vendas rapido" }
-```
-
-Resposta `200`:
 
 ```json
 {
   "prompt_otimizado": "Contexto: ...\nObjetivo: ...\nRequisitos: ...\nFormato de Saida: ...",
   "resposta_final": "...",
   "meta": {
-    "otimizacao": {
-      "model": "gemini-3-flash-preview",
-      "thinking": { "thinkingLevel": "LOW" },
-      "usage": { "prompt_tokens": 0, "candidates_tokens": 0, "thoughts_tokens": 0, "cached_tokens": 0, "total_tokens": 0 },
-      "latency_ms": 0
-    },
-    "execucao": {
-      "model": "gemini-3-pro-preview",
-      "thinking": { "thinkingLevel": "HIGH" },
-      "usage": { "prompt_tokens": 0, "candidates_tokens": 0, "thoughts_tokens": 0, "cached_tokens": 0, "total_tokens": 0 },
-      "latency_ms": 0
-    },
+    "otimizacao": { "model": "...", "usage": {}, "latency_ms": 0 },
+    "execucao":   { "model": "...", "usage": {}, "latency_ms": 0 },
     "latency_ms_total": 0
   }
 }
 ```
 
-`meta` e informativo (custo e latencia por camada); os dois campos pedidos —
-`prompt_otimizado` e `resposta_final` — sao sempre strings.
-
-`POST /api/process-text` e um alias do mesmo handler.
-
-### `GET /`
-
-Interface web: um campo de texto, o resultado renderizado e o prompt intermediario
-exposto para auditoria. E o que a URL publica serve — abrir no navegador basta,
-nao precisa de cliente HTTP.
-
-Como uma requisicao pode levar de 10s a mais de 3 minutos (hibernacao do plano
-free + 503 do Gemini absorvidos pelo retry), a interface mostra um contador de
-segundos e explica o que esta acontecendo; sem isso, a espera parece travamento.
-
-### `POST /processar/stream`
-
-Mesmo pipeline em Server-Sent Events. Mesmo corpo, mesma senha; a resposta e um
-fluxo de eventos `data: {...}`:
+### Eventos do stream
 
 | `tipo` | Quando | Carrega |
 |---|---|---|
-| `etapa` | inicio/fim de cada camada | na `otimizacao` com `estado: "fim"`, ja vem o `prompt_otimizado` |
-| `retry` | um 503 disparou nova tentativa | `status`, `tentativa`, `total`, `espera_ms` |
+| `etapa` | inicio/fim de cada camada | no fim da `otimizacao`, ja vem o `prompt_otimizado` |
 | `delta` | pedaco de texto da IA 2 | `texto` — concatene na ordem |
-| `fim` | pipeline concluido | o mesmo corpo de `POST /processar` |
+| `retry` | um 503 disparou nova tentativa | `status`, `tentativa`, `total`, `espera_ms` |
+| `fim` | concluido | o mesmo corpo de `POST /processar` |
 | `erro` | falhou depois do stream aberto | `codigo`, `mensagem`, `etapa` |
 
-E o que a interface consome. O ganho medido: **o prompt da IA 1 aparece em ~6s**,
-em vez de ficar escondido ate o fim da IA 2 — que pode levar minutos quando o
-Gemini devolve 503. Erros de validacao do corpo continuam voltando como JSON com
-status, porque acontecem antes de o stream abrir.
+> **`delta` e retry:** uma nova tentativa recomeca a geracao do zero. Ao receber um `retry` da etapa `execucao`, descarte o texto acumulado — senao a resposta sai duplicada.
 
-`POST /processar` segue inalterado para integracoes que preferem uma resposta
-unica — internamente ele tambem consome a IA 2 em stream, o que evita prender a
-chamada em uma unica resposta longa.
+### Erros
 
-> **`delta` e retry:** uma nova tentativa recomeca a geracao do zero. Ao receber
-> um `retry` da etapa `execucao`, descarte o texto acumulado ate ali — e o que a
-> interface faz — senao a resposta sai duplicada.
-
-### `POST /otimizar` e `POST /executar/stream`
-
-As duas camadas separadas, para quem quer revisar o meio do caminho.
-`/otimizar` recebe `{texto}` e devolve so o `prompt_otimizado` (JSON, ~5s).
-`/executar/stream` recebe `{prompt}` — editado ou nao — e roda so a IA 2, em
-SSE com os mesmos eventos.
-
-E o que a interface usa quando "Revisar o prompt antes de executar" esta
-marcado. O efeito e real: em teste, acrescentar "responda em exatamente 3
-bullets curtos" ao prompt gerado produziu 678 caracteres em 3 bullets, contra
-4774 caracteres da mesma entrada sem edicao.
-
-O limite de `prompt` e 4x o de `texto`, porque aqui ja e um prompt tecnico
-expandido, naturalmente maior que o pedido cru.
-
-### `GET /api`
-
-Indice legivel por maquina: endpoints, limite de entrada e modelos em uso.
-Nao consome a API do Gemini.
-
-### `GET /health`
-
-Liveness probe. Nao consome a API do Gemini.
-
-## Teste rapido (cURL)
-
-```bash
-curl -s -X POST http://localhost:3000/processar -H 'Content-Type: application/json' -d '{"texto":"quero um site de vendas rapido"}'
-```
-
-No Postman: `POST http://localhost:3000/processar`, Body -> raw -> JSON, com o
-mesmo corpo acima.
-
-## Acesso
-
-`POST /processar` (e o alias `/api/process-text`) exigem a senha definida em
-`ACESSO_SENHA`. Envie em `x-senha: <valor>` ou `Authorization: Bearer <valor>`:
-
-```bash
-curl -X POST https://pipeline-ia-dupla.onrender.com/processar   -H 'Content-Type: application/json' -H 'x-senha: SUA_SENHA'   -d '{"texto":"quero um site de vendas rapido"}'
-```
-
-`GET /`, `/api` e `/health` continuam abertos: a interface precisa carregar
-antes de pedir a senha, e o health check e sondado pela plataforma.
-
-A comparacao usa `timingSafeEqual` sobre o hash das duas pontas. Comparar com
-`===` vazaria o tamanho do prefixo correto pelo tempo de resposta, permitindo
-descobrir a senha caractere a caractere; o hash iguala os comprimentos, porque
-`timingSafeEqual` lanca excecao com buffers de tamanhos diferentes — e o
-proprio lancamento ja seria um sinal.
-
-> **Sem `ACESSO_SENHA` definida, a rota fica aberta** e o servidor avisa no
-> boot. E deliberado, para nao travar o desenvolvimento local — mas numa URL
-> publica significa qualquer pessoa gastando sua cota do Gemini.
-
-## Erros
-
-Todo erro sai no formato:
-
-```json
-{ "erro": { "codigo": "...", "mensagem": "...", "etapa": "otimizacao|execucao", "detalhes": {} } }
-```
+Formato unico: `{ "erro": { "codigo", "mensagem", "etapa", "detalhes" } }`
 
 | Codigo | HTTP | Quando |
 |---|---|---|
-| `validation_error` | 400 | `texto` ausente, vazio ou acima de `MAX_INPUT_CHARS` |
+| `validation_error` | 400 | campo ausente, vazio ou acima do limite |
 | `invalid_json` | 400 | corpo nao e JSON valido |
 | `nao_autorizado` | 401 | senha ausente ou incorreta |
-| `rota_nao_encontrada` | 404 | rota inexistente |
-| `prompt_blocked` | 422 | entrada barrada pelos filtros (`promptFeedback.blockReason`) |
-| `content_blocked` | 422 | geracao interrompida por SAFETY / BLOCKLIST / PROHIBITED_CONTENT / SPII / RECITATION |
-| `upstream_rate_limited` | 429 | 429 da API (limite de requisicoes ou cota) |
-| `upstream_auth_error` | 500 | chave invalida ou sem permissao |
-| `upstream_model_not_found` | 500 | modelo inexistente ou indisponivel para a chave |
-| `max_tokens_truncated` | 502 | resposta cortada no limite de tokens de saida |
-| `upstream_bad_request` | 502 | requisicao rejeitada pela API |
-| `unexpected_finish_reason` | 502 | parada por RECITATION/LANGUAGE/OTHER etc. |
-| `upstream_unavailable` | 503 | 5xx da API, apos esgotar as tentativas |
+| `prompt_blocked` / `content_blocked` | 422 | filtros do Gemini, na entrada ou na geracao |
+| `upstream_rate_limited` | 429 | cota esgotada |
+| `upstream_auth_error` | 500 | chave invalida (chega como 400 `API_KEY_INVALID`) |
+| `max_tokens_truncated` | 502 | resposta cortada no limite de saida |
+| `upstream_unavailable` | 503 | 5xx apos esgotar as tentativas |
 | `upstream_timeout` | 504 | estourou `REQUEST_TIMEOUT_MS` |
 
-## Modelos e raciocinio
+---
 
-Padrao verificado nesta chave em 2026-09-05: `gemini-3.1-flash-lite` na IA 1
-(reescrever e a tarefa leve das duas) e `gemini-3.5-flash` na IA 2. Configuraveis
-por `OPTIMIZER_MODEL` e `EXECUTOR_MODEL`.
+## Rodando localmente
 
-### Disponibilidade medida (nao presuma, teste)
-
-O catalogo do Gemini gira rapido, e o que a documentacao do SDK sugere nem sempre
-existe. Sondagem feita com esta chave:
-
-| Modelo | Resultado |
-|---|---|
-| `gemini-3.1-flash-lite` | OK, ~0,5s |
-| `gemini-2.5-flash` | OK, ~0,6s |
-| `gemini-3-flash-preview` | OK isolado, 503 sob carga |
-| `gemini-3.5-flash` | OK, ~14s |
-| `gemini-3.8-flash` | intermitente (503 recorrente) |
-| `gemini-3.6-flash` / `gemini-3.7-flash` | 503 UNAVAILABLE |
-| `gemini-3-pro-preview` | aposentado (404) |
-| `gemini-3.1-pro-preview` / `gemini-2.5-pro` | **429 RESOURCE_EXHAUSTED** — sem cota de tier pro |
-
-> **Os modelos pro estao fora de alcance nesta chave.** Para usar `gemini-3.1-pro-preview`
-> na IA 2, e preciso habilitar billing / tier pago no Google AI Studio. Ate la,
-> as duas camadas rodam em flash.
-
-Para redescobrir o que esta disponivel, liste os modelos da chave:
+Requer Node 20+.
 
 ```bash
-node -e "import('dotenv/config').then(async()=>{const{GoogleGenAI}=await import('@google/genai');const ai=new GoogleGenAI({apiKey:process.env.GEMINI_API_KEY});for await(const m of await ai.models.list())console.log(m.name)})"
+git clone https://github.com/Hardcastro/pipeline-ia-dupla.git
+cd pipeline-ia-dupla
+npm install
+cp .env.example .env    # preencha GEMINI_API_KEY
+npm start
 ```
 
-### Raciocinio muda entre geracoes
+Chave em [Google AI Studio](https://aistudio.google.com/apikey). `npm run dev` sobe com `--watch`.
 
-| Geracao | Campo da API | Valor em `*_THINKING` |
+### Configuracao
+
+| Variavel | Padrao | Observacao |
+|---|---|---|
+| `GEMINI_API_KEY` | — | obrigatoria; o processo nao sobe sem ela |
+| `ACESSO_SENHA` | vazio | **vazio deixa `/processar` aberto**, com aviso no boot |
+| `OPTIMIZER_MODEL` / `EXECUTOR_MODEL` | `gemini-3.1-flash-lite` | sonde `ai.models.list()` antes de fixar outro |
+| `OPTIMIZER_THINKING` / `EXECUTOR_THINKING` | `low` / `high` | nivel (Gemini 3) ou orcamento em tokens (Gemini 2.5) |
+| `*_MAX_OUTPUT_TOKENS` | 8192 / 32768 | tokens de raciocinio contam nesse limite |
+| `RETRY_ATTEMPTS` / `RETRY_BASE_DELAY_MS` | 3 / 1000 | pior caso ≈ tentativas × timeout |
+| `REQUEST_TIMEOUT_MS` | 300000 | por tentativa |
+
+O controle de raciocinio mudou entre geracoes do Gemini, e `config.js` aceita as duas formas na mesma variavel:
+
+| Geracao | Campo da API | Valor aceito |
 |---|---|---|
 | Gemini 3 | `thinkingConfig.thinkingLevel` | `minimal`, `low`, `medium`, `high` |
 | Gemini 2.5 | `thinkingConfig.thinkingBudget` | inteiro de tokens (`0` desliga, `-1` automatico) |
 
-`config.js` cobre as duas formas na mesma variavel, entao trocar de familia e so
-trocar duas variaveis de ambiente:
+> **Armadilha:** tokens de raciocinio contam dentro de `maxOutputTokens`. Teto baixo com raciocinio alto retorna `finishReason: MAX_TOKENS` com texto vazio.
 
-```bash
-EXECUTOR_MODEL=gemini-2.5-flash
-EXECUTOR_THINKING=4096
-```
-
-> **Armadilha:** tokens de raciocinio contam dentro de `maxOutputTokens`. Um teto
-> baixo com raciocinio alto retorna `finishReason: MAX_TOKENS` com texto vazio —
-> por isso os padroes de `*_MAX_OUTPUT_TOKENS` sao folgados, e o erro
-> `max_tokens_truncated` explica as duas saidas possiveis. Confira
-> `meta.*.usage.thoughts_tokens` para ver quanto o raciocinio consumiu.
-
-## Decisoes de implementacao
-
-- **Saida da IA 1 forcada por schema:** em vez de confiar na instrucao "retorne
-  exclusivamente o prompt" e depois limpar saudacoes com regex, a chamada usa
-  `responseMimeType: "application/json"` + `responseJsonSchema` com um unico
-  campo. O modelo nao consegue emitir preambulo. Ha fallback para o texto cru
-  caso o parse falhe.
-- **Blindagem contra injecao:** o texto do usuario chega envelopado em
-  `<texto_do_usuario>` e a system instruction declara que aquele conteudo e dado,
-  nao instrucao — inclusive quando contem frases como "ignore as instrucoes acima".
-- **Bloqueio verificado nos dois pontos:** o Gemini barra conteudo tanto na
-  entrada (`promptFeedback.blockReason`) quanto durante a geracao
-  (`candidates[0].finishReason`), ambos com HTTP 200. O pipeline checa os dois
-  antes de ler o texto, para nao devolver resposta vazia silenciosa.
-- **Retry com backoff:** a API do Gemini responde 503 "high demand" com
-  frequencia em uso normal, e o SDK nao tem retry proprio. Ambas as camadas
-  repetem em 500/502/503/504 com backoff exponencial + jitter
-  (`RETRY_ATTEMPTS`, `RETRY_BASE_DELAY_MS`). **429 fica de fora de proposito:**
-  na pratica significa cota esgotada, e insistir so queima mais cota.
-  Cada tentativa carrega o proprio `REQUEST_TIMEOUT_MS`, entao o pior caso de
-  tempo total e aproximadamente `attempts x timeout` — reduza `RETRY_ATTEMPTS`
-  se precisar de um teto de latencia mais apertado.
-- **Timeout explicito:** cada chamada leva um `abortSignal` de
-  `REQUEST_TIMEOUT_MS`, para que uma geracao travada nao segure a conexao HTTP
-  indefinidamente.
-
-## Producao
-
-No ar em <https://pipeline-ia-dupla.onrender.com> (Render, plano free, regiao Oregon,
-runtime Docker, branch `main` com auto-deploy).
-
-### Latencia: o gargalo sao os 503, nao o modelo
-
-Medicoes de 2026-09-06, mesma entrada, `gemini-3.1-flash-lite` nas duas camadas:
-
-| Execucao | IA 1 | IA 2 |
-|---|---|---|
-| 1 | 3,1s | 9,0s |
-| 2 | 3,6s | 21,8s |
-| 3 | 2,8s | 42,8s |
-| 4 | 2,5s | 201,7s |
-
-A IA 2 varia mais de 20x. **Nao e o modelo:** a IA 1 usa exatamente o mesmo
-modelo, no mesmo processo e na mesma requisicao, e fica entre 2,5s e 3,6s. Trocar
-o modelo da IA 2 (de `gemini-3.5-flash` para `gemini-3.1-flash-lite`) melhorou o
-melhor caso e piorou o pior — sem ganho liquido demonstravel.
-
-A causa esta nos logs:
-
-```
-05:28:18  [retry] execucao: 503 na tentativa 1/4, nova tentativa em 862ms
-05:29:19  [retry] execucao: 503 na tentativa 2/4, nova tentativa em 2671ms
-05:30:09  [retry] execucao: 503 na tentativa 3/4, nova tentativa em 4290ms
-```
-
-Entre as tentativas passam ~61s, mas o backoff programado era de 862ms: **cada
-tentativa fracassada fica pendurada cerca de um minuto antes de retornar 503.**
-O custo esta na API do Gemini demorando para falhar, nao no backoff. As quatro
-execucoes retornaram 200 — o retry esta absorvendo as falhas, so que caro.
-
-O que diferencia a IA 2 da IA 1 e `thinkingLevel: HIGH` contra `LOW` e um volume
-de saida bem maior; geracoes longas ficam mais expostas a fila do servidor.
-
-### Licao para quem for mexer nisso
-
-Um benchmark local de disponibilidade mede o momento, nao uma propriedade estavel
-do modelo. Na sondagem inicial `gemini-3.5-flash` falhou 4 de 9 vezes e
-`gemini-3.1-flash-lite` acertou 3 de 3 — o que levou a uma troca que nao se
-sustentou em producao. Antes de atribuir latencia a escolha de modelo, **cheque
-as linhas `[retry]` nos logs do Render**: elas dizem se o tempo foi gasto
-gerando ou esperando falhar.
-
-### Alavancas, se a latencia incomodar
-
-Nenhuma delas e trocar de modelo:
-
-- `RETRY_ATTEMPTS=2` limita o pior caso (~130s em vez de ~200s), aceitando falhar mais.
-- `EXECUTOR_THINKING=medium` reduz os tokens gerados, e portanto a exposicao. Nao testado em producao.
-- Plano pago, que remove a hibernacao e o teto de 0.1 CPU.
-
-> O plano free hiberna apos inatividade: a primeira chamada depois disso soma
-> ~50s de cold start. `GET /health` acorda o servico sem consumir a API do Gemini.
-
-## Decisoes de implementacao
-
-- **Saida da IA 1 forcada por schema:** em vez de confiar na instrucao "retorne
-  exclusivamente o prompt" e depois limpar saudacoes com regex, a chamada usa
-  `responseMimeType: "application/json"` + `responseJsonSchema` com um unico
-  campo. O modelo nao consegue emitir preambulo. Ha fallback para o texto cru
-  caso o parse falhe.
-- **Blindagem contra injecao:** o texto do usuario chega envelopado em
-  `<texto_do_usuario>` e a system instruction declara que aquele conteudo e dado,
-  nao instrucao — inclusive quando contem frases como "ignore as instrucoes acima".
-- **Bloqueio verificado nos dois pontos:** o Gemini barra conteudo tanto na
-  entrada (`promptFeedback.blockReason`) quanto durante a geracao
-  (`candidates[0].finishReason`), ambos com HTTP 200. O pipeline checa os dois
-  antes de ler o texto, para nao devolver resposta vazia silenciosa.
-- **Retry com backoff:** a API do Gemini responde 503 "high demand" com
-  frequencia em uso normal, e o SDK nao tem retry proprio. Ambas as camadas
-  repetem em 500/502/503/504 com backoff exponencial + jitter
-  (`RETRY_ATTEMPTS`, `RETRY_BASE_DELAY_MS`). **429 fica de fora de proposito:**
-  na pratica significa cota esgotada, e insistir so queima mais cota.
-  Cada tentativa carrega o proprio `REQUEST_TIMEOUT_MS`, entao o pior caso de
-  tempo total e aproximadamente `attempts x timeout` — reduza `RETRY_ATTEMPTS`
-  se precisar de um teto de latencia mais apertado.
-- **Timeout explicito:** cada chamada leva um `abortSignal` de
-  `REQUEST_TIMEOUT_MS`, para que uma geracao travada nao segure a conexao HTTP
-  indefinidamente.
-
-## Producao
-
-No ar em <https://pipeline-ia-dupla.onrender.com> (Render, plano free, regiao Oregon,
-runtime Docker, branch `main` com auto-deploy).
-
-Latencia medida em 2026-09-05, mesma entrada:
-
-| Ambiente | IA 1 | IA 2 | Total |
-|---|---|---|---|
-| Local | ~2,0s | ~11s | ~13s |
-| Render free | ~2,0s | 25-63s | 28-82s |
-
-A IA 1 se comporta igual nos dois. A variancia toda esta na IA 2
-(`gemini-3.5-flash`), e **nao e retry** — os logs do Render registram uma unica
-linha `[retry]`, na IA 1, que se recuperou na segunda tentativa. As hipoteses
-restantes sao a variancia do proprio modelo (ja era o mais lento da sondagem) e
-o teto de 0.1 CPU do plano free.
-
-Se a latencia incomodar, na ordem de custo crescente: baixar `EXECUTOR_THINKING`
-para `medium`, trocar `EXECUTOR_MODEL` por um flash mais rapido, ou subir de
-plano. Os dois primeiros sao variaveis de ambiente no Render — nao exigem novo
-deploy de codigo.
-
-> O plano free hiberna apos inatividade: a primeira chamada depois disso soma
-> ~50s de cold start. `GET /health` acorda o servico sem consumir a API do Gemini.
+---
 
 ## Deploy
 
-O `Dockerfile` incluido serve para qualquer plataforma de container. No Render,
-um Web Service Node tambem sobe direto do repositorio (`npm install` +
-`npm start`); em ambos os casos, injete `GEMINI_API_KEY` como variavel de
-ambiente — nunca comite o `.env`.
+Em producao no Render (plano gratuito, runtime Docker, auto-deploy da branch `main`). O `Dockerfile` serve qualquer plataforma de container:
 
 ```bash
 docker build -t pipeline-ia-dupla .
-docker run --rm -p 3000:3000 -e GEMINI_API_KEY=AIza... pipeline-ia-dupla
+docker run --rm -p 3000:3000 -e GEMINI_API_KEY=... pipeline-ia-dupla
 ```
+
+Nao fixe `PORT`: a plataforma injeta a dela (o Render usa 10000) e o `config.js` a le de `process.env`.
+
+---
+
+## Licenca
+
+[MIT](LICENSE)

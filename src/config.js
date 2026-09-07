@@ -47,6 +47,9 @@ export const config = {
   maxInputChars: readInt("MAX_INPUT_CHARS", 8000),
   requestTimeoutMs: readInt("REQUEST_TIMEOUT_MS", 300_000),
 
+  // Senha compartilhada. Nula = protecao desligada (ver aviso no boot).
+  acessoSenha: process.env.ACESSO_SENHA || null,
+
   retry: {
     // Sobrecarga temporaria do modelo (503) e comum na API do Gemini.
     attempts: readInt("RETRY_ATTEMPTS", 3),
@@ -68,6 +71,13 @@ export const config = {
 
 /** Falha cedo, na subida do processo, em vez de estourar so na primeira requisicao. */
 export function assertCredentials() {
+  if (!config.acessoSenha) {
+    console.warn(
+      "[aviso] ACESSO_SENHA nao definida: POST /processar esta aberto. " +
+        "Numa URL publica isso deixa qualquer pessoa gastar sua cota do Gemini.",
+    );
+  }
+
   if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
     throw new Error(
       "GEMINI_API_KEY nao definida. Copie .env.example para .env e preencha a " +

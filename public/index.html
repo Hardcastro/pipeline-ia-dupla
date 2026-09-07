@@ -38,7 +38,12 @@
     border: 1px solid var(--line); background: var(--card); color: var(--ink);
     font: inherit; resize: vertical;
   }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea:focus, input[type=password]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input[type=password] {
+    width: 100%; max-width: 340px; padding: 10px 13px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    font: inherit; margin-bottom: 20px;
+  }
   .row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
   button {
     background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
@@ -88,6 +93,11 @@
     <span>seu texto</span> &rarr; <span>IA 1 reescreve</span> &rarr; <span>IA 2 executa</span> &rarr; <span>resposta</span>
   </div>
 
+  <div id="areaSenha" hidden>
+    <label for="senha">Senha de acesso</label>
+    <input id="senha" type="password" autocomplete="current-password" placeholder="senha definida em ACESSO_SENHA">
+  </div>
+
   <label for="texto">O que voce quer?</label>
   <textarea id="texto" placeholder="ex: quero um site de vendas rapido"></textarea>
   <div class="row">
@@ -106,7 +116,22 @@
 <script>
 const $ = (id) => document.getElementById(id);
 const texto = $("texto"), btn = $("btn"), count = $("count"), status = $("status"), saida = $("saida");
+const senha = $("senha"), areaSenha = $("areaSenha");
 const LIMITE = 8000;
+const GUARDA = "pipeline-ia-dupla:senha";
+
+// O campo de senha so aparece se o servidor exigir. Um 401 ja revelaria isso,
+// entao perguntar ao /api nao expoe nada novo.
+(async () => {
+  try {
+    const r = await fetch("/api");
+    const j = await r.json();
+    if (j.requer_senha) {
+      areaSenha.hidden = false;
+      try { senha.value = localStorage.getItem(GUARDA) || ""; } catch {}
+    }
+  } catch {}
+})();
 
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
@@ -159,19 +184,36 @@ btn.addEventListener("click", async () => {
   cron = setInterval(() => aguardando(t0), 1000);
 
   try {
+    const cabecalhos = { "Content-Type": "application/json" };
+    if (!areaSenha.hidden && senha.value) cabecalhos["x-senha"] = senha.value;
+
     const r = await fetch("/processar", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: cabecalhos,
       body: JSON.stringify({ texto: t }),
     });
     const j = await r.json();
     clearInterval(cron);
+
+    if (r.status === 401) {
+      areaSenha.hidden = false;
+      try { localStorage.removeItem(GUARDA); } catch {}
+      senha.focus();
+      status.innerHTML = '<div class="err"><strong>' + esc((j.erro || {}).mensagem || "Senha incorreta.") +
+        "</strong><br>O valor precisa bater com a variavel <code>ACESSO_SENHA</code> do servidor.</div>";
+      return;
+    }
 
     if (!r.ok) {
       const e = j.erro || {};
       status.innerHTML = '<div class="err"><strong>' + esc(e.mensagem || "A requisicao falhou.") + "</strong><br><code>" +
         esc(e.codigo || r.status) + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code></div>";
       return;
+    }
+
+    // So guarda depois de a senha ser aceita, para nao persistir valor errado.
+    if (!areaSenha.hidden && senha.value) {
+      try { localStorage.setItem(GUARDA, senha.value); } catch {}
     }
 
     const seg = ((Date.now() - t0) / 1000).toFixed(1);

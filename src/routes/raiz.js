@@ -23,6 +23,12 @@ raizRouter.get("/api", (_req, res) => {
         corpo: { texto: "string, ate " + config.maxInputChars + " caracteres" },
         retorna: ["prompt_otimizado", "resposta_final", "meta"],
       },
+      {
+        metodo: "POST",
+        caminho: "/processar/stream",
+        descricao: "Mesmo pipeline em Server-Sent Events, com progresso ao vivo.",
+        eventos: ["etapa", "retry", "fim", "erro"],
+      },
       { metodo: "GET", caminho: "/health", descricao: "Liveness probe." },
       { metodo: "GET", caminho: "/api", descricao: "Este indice." },
       { metodo: "GET", caminho: "/", descricao: "Interface web." },

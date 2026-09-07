@@ -92,6 +92,26 @@ Como uma requisicao pode levar de 10s a mais de 3 minutos (hibernacao do plano
 free + 503 do Gemini absorvidos pelo retry), a interface mostra um contador de
 segundos e explica o que esta acontecendo; sem isso, a espera parece travamento.
 
+### `POST /processar/stream`
+
+Mesmo pipeline em Server-Sent Events. Mesmo corpo, mesma senha; a resposta e um
+fluxo de eventos `data: {...}`:
+
+| `tipo` | Quando | Carrega |
+|---|---|---|
+| `etapa` | inicio/fim de cada camada | na `otimizacao` com `estado: "fim"`, ja vem o `prompt_otimizado` |
+| `retry` | um 503 disparou nova tentativa | `status`, `tentativa`, `total`, `espera_ms` |
+| `fim` | pipeline concluido | o mesmo corpo de `POST /processar` |
+| `erro` | falhou depois do stream aberto | `codigo`, `mensagem`, `etapa` |
+
+E o que a interface consome. O ganho medido: **o prompt da IA 1 aparece em ~6s**,
+em vez de ficar escondido ate o fim da IA 2 — que pode levar minutos quando o
+Gemini devolve 503. Erros de validacao do corpo continuam voltando como JSON com
+status, porque acontecem antes de o stream abrir.
+
+`POST /processar` segue inalterado para integracoes que preferem uma resposta
+unica.
+
 ### `GET /api`
 
 Indice legivel por maquina: endpoints, limite de entrada e modelos em uso.

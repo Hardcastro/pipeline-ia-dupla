@@ -6,140 +6,233 @@
 <title>Pipeline de IA dupla</title>
 <style>
   :root {
-    --bg: #f7f7f5; --card: #fff; --ink: #1a1a18; --muted: #6b6b66;
-    --line: #e3e3dd; --accent: #3b5bdb; --accent-ink: #fff;
-    --warn-bg: #fff8e6; --warn-line: #f0d9a0; --err-bg: #fdeceb; --err-line: #f3bdb8;
-    --code-bg: #f0f0ec;
+    --bg: #faf9f7; --card: #fff; --ink: #17161a; --ink-2: #4a4852; --muted: #83808e;
+    --line: #e6e3de; --line-2: #efece7;
+    --accent: #5b4bd6; --accent-soft: #efecfd; --accent-ink: #fff;
+    --ok: #1f8a54; --ok-soft: #e8f6ee;
+    --warn: #9a6a10; --warn-soft: #fdf3e0;
+    --err: #b3372e; --err-soft: #fceceb;
+    --code-bg: #f4f2ee;
+    --shadow: 0 1px 2px rgba(20,18,30,.05), 0 8px 24px -12px rgba(20,18,30,.14);
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #16161a; --card: #1e1e23; --ink: #ececE8; --muted: #9a9a94;
-      --line: #32323a; --accent: #7a92f0; --accent-ink: #16161a;
-      --warn-bg: #2b2412; --warn-line: #5c4a1e; --err-bg: #2e1a19; --err-line: #6b3330;
-      --code-bg: #26262c;
+      --bg: #121116; --card: #1a1920; --ink: #f0eef2; --ink-2: #c3bfcc; --muted: #8d8999;
+      --line: #2c2a35; --line-2: #24222c;
+      --accent: #a094ff; --accent-soft: #241f45; --accent-ink: #16141f;
+      --ok: #5fd39a; --ok-soft: #16291f;
+      --warn: #e0b25c; --warn-soft: #2a2213;
+      --err: #f0928a; --err-soft: #2e1a19;
+      --code-bg: #221f2a;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -14px rgba(0,0,0,.6);
     }
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
-  .sub { color: var(--muted); margin: 0 0 24px; font-size: 0.94rem; }
-  .flow {
-    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-    font-size: 0.8rem; color: var(--muted); margin-bottom: 24px;
+  .wrap { max-width: 780px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  header { margin-bottom: 28px; }
+  .marca {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 0.74rem;
+    text-transform: uppercase; letter-spacing: 0.09em; font-weight: 700;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 5px 11px; border-radius: 100px; margin-bottom: 14px;
   }
-  .flow span { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; }
-  label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 8px; }
-  textarea {
-    width: 100%; min-height: 110px; padding: 13px; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--card); color: var(--ink);
-    font: inherit; resize: vertical;
+  .marca b { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  h1 { font-size: clamp(1.6rem, 4.5vw, 2.1rem); line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.025em; }
+  .sub { color: var(--ink-2); margin: 0; font-size: 1.02rem; max-width: 54ch; }
+
+  .painel {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px; box-shadow: var(--shadow); margin-bottom: 18px;
   }
-  textarea:focus, input[type=password]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  input[type=password] {
-    width: 100%; max-width: 340px; padding: 10px 13px; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--card); color: var(--ink);
-    font: inherit; margin-bottom: 20px;
+  label { display: block; font-weight: 600; font-size: 0.86rem; margin-bottom: 8px; color: var(--ink-2); }
+  textarea, input[type=password] {
+    width: 100%; padding: 13px 15px; border-radius: 11px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); font: inherit; transition: border-color .15s, box-shadow .15s;
   }
-  .row { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
-  button {
-    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px;
-    padding: 11px 22px; font: inherit; font-weight: 600; cursor: pointer;
+  textarea { min-height: 108px; resize: vertical; line-height: 1.55; }
+  textarea:focus, input[type=password]:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
   }
-  button:disabled { opacity: 0.55; cursor: not-allowed; }
-  .count { color: var(--muted); font-size: 0.85rem; }
-  .count.over { color: #c0392b; font-weight: 600; }
-  .note, .err { border-radius: 10px; padding: 13px 15px; margin-top: 20px; font-size: 0.9rem; }
-  .note { background: var(--warn-bg); border: 1px solid var(--warn-line); }
-  .err { background: var(--err-bg); border: 1px solid var(--err-line); }
-  .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
-    padding: 20px 22px; margin-top: 20px;
+  #areaSenha { margin-bottom: 18px; }
+  #areaSenha input { max-width: 320px; }
+
+  .exemplos { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0 0; }
+  .chip {
+    font: inherit; font-size: 0.82rem; color: var(--ink-2); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 100px; padding: 5px 12px; cursor: pointer;
+    transition: all .15s;
   }
-  .card h2 {
-    font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--muted); margin: 0 0 14px; font-weight: 700;
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  .barra { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; }
+  button.principal {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px;
+    padding: 12px 24px; font: inherit; font-weight: 650; cursor: pointer; transition: opacity .15s, transform .1s;
   }
-  .out h3 { font-size: 1.02rem; margin: 20px 0 7px; }
+  button.principal:hover:not(:disabled) { opacity: .9; }
+  button.principal:active:not(:disabled) { transform: translateY(1px); }
+  button.principal:disabled { opacity: .5; cursor: not-allowed; }
+  .dica { color: var(--muted); font-size: 0.8rem; }
+  .dica.over { color: var(--err); font-weight: 600; }
+
+  /* Trilha das duas etapas */
+  .trilha { display: grid; gap: 10px; }
+  .etapa {
+    display: flex; align-items: flex-start; gap: 13px; padding: 13px 15px;
+    border: 1px solid var(--line-2); border-radius: 12px; background: var(--bg);
+    transition: border-color .2s, background .2s;
+  }
+  .etapa[data-estado="ativa"] { border-color: var(--accent); background: var(--accent-soft); }
+  .etapa[data-estado="feita"] { border-color: var(--line); }
+  .etapa[data-estado="espera"] { opacity: .5; }
+  .bolha {
+    flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; margin-top: 1px;
+    border: 2px solid var(--line); display: grid; place-items: center;
+    font-size: 0.68rem; font-weight: 700; color: var(--muted);
+  }
+  .etapa[data-estado="ativa"] .bolha { border-color: var(--accent); color: var(--accent); animation: pulso 1.4s ease-in-out infinite; }
+  .etapa[data-estado="feita"] .bolha { border-color: var(--ok); background: var(--ok); color: var(--card); }
+  @keyframes pulso { 0%,100% { box-shadow: 0 0 0 0 var(--accent-soft); } 50% { box-shadow: 0 0 0 5px transparent; } }
+  .etapa .txt { flex: 1; min-width: 0; }
+  .etapa .nome { font-weight: 600; font-size: 0.92rem; }
+  .etapa .det { color: var(--muted); font-size: 0.82rem; }
+  .etapa .tempo { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+
+  .aviso {
+    display: flex; gap: 9px; align-items: flex-start; font-size: 0.85rem;
+    background: var(--warn-soft); color: var(--warn); border-radius: 9px;
+    padding: 9px 12px; margin-top: 9px; border: 1px solid transparent;
+  }
+  .erro {
+    background: var(--err-soft); color: var(--err); border-radius: 12px;
+    padding: 14px 16px; margin-top: 16px; font-size: 0.92rem;
+  }
+  .erro code { background: rgba(0,0,0,.06); padding: 1px 6px; border-radius: 5px; font-size: 0.85em; }
+
+  .resultado { margin-top: 18px; animation: entra .35s ease both; }
+  @keyframes entra { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .cab {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 14px; flex-wrap: wrap;
+  }
+  .cab h2 {
+    font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 0; font-weight: 700;
+  }
+  .copiar {
+    font: inherit; font-size: 0.78rem; color: var(--ink-2); background: transparent;
+    border: 1px solid var(--line); border-radius: 7px; padding: 4px 10px; cursor: pointer;
+  }
+  .copiar:hover { border-color: var(--accent); color: var(--accent); }
+  .copiar.ok { color: var(--ok); border-color: var(--ok); }
+
+  .out { font-size: 1.005rem; }
+  .out h3 { font-size: 1.05rem; margin: 22px 0 8px; letter-spacing: -0.01em; }
   .out h3:first-child { margin-top: 0; }
-  .out ul { padding-left: 20px; margin: 8px 0; }
-  .out p { margin: 9px 0; }
-  .out code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: 0.88em; }
-  .out hr { border: 0; border-top: 1px solid var(--line); margin: 18px 0; }
+  .out ul { padding-left: 20px; margin: 9px 0; }
+  .out li { margin: 4px 0; }
+  .out p { margin: 10px 0; }
+  .out code { background: var(--code-bg); padding: 1.5px 6px; border-radius: 5px; font-size: 0.88em; }
+  .out hr { border: 0; border-top: 1px solid var(--line-2); margin: 20px 0; }
   pre.prompt {
     white-space: pre-wrap; word-wrap: break-word; margin: 0; font: inherit;
-    color: var(--muted); font-size: 0.92rem;
+    font-size: 0.92rem; color: var(--ink-2); background: var(--bg);
+    border-radius: 10px; padding: 15px; border: 1px solid var(--line-2);
   }
-  .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.82rem; color: var(--muted); margin-top: 12px; }
-  .spin {
-    display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line);
-    border-top-color: var(--accent); border-radius: 50%; animation: sp 0.7s linear infinite;
-    vertical-align: -2px; margin-right: 7px;
+  .rodape-card {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    font-size: 0.78rem; color: var(--muted); margin-top: 14px;
   }
-  @keyframes sp { to { transform: rotate(360deg); } }
-  footer { margin-top: 40px; font-size: 0.82rem; color: var(--muted); }
-  footer a { color: var(--accent); }
+  .rodape-card span { background: var(--bg); border: 1px solid var(--line-2); border-radius: 6px; padding: 2px 8px; }
+
+  footer { margin-top: 36px; font-size: 0.82rem; color: var(--muted); }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+  @media (max-width: 560px) {
+    .wrap { padding: 28px 16px 60px; }
+    .painel { padding: 18px; border-radius: 14px; }
+  }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Pipeline de IA dupla</h1>
-  <p class="sub">Escreva do seu jeito. Uma IA reescreve o pedido como prompt tecnico, outra executa.</p>
+  <header>
+    <div class="marca"><b></b> duas IAs em sequencia</div>
+    <h1>Diga do seu jeito.<br>A IA traduz para a IA.</h1>
+    <p class="sub">A primeira reescreve seu pedido como um prompt tecnico e detalhado. A segunda executa esse prompt. Voce ve as duas coisas.</p>
+  </header>
 
-  <div class="flow">
-    <span>seu texto</span> &rarr; <span>IA 1 reescreve</span> &rarr; <span>IA 2 executa</span> &rarr; <span>resposta</span>
+  <div class="painel">
+    <div id="areaSenha" hidden>
+      <label for="senha">Senha de acesso</label>
+      <input id="senha" type="password" autocomplete="current-password" placeholder="definida em ACESSO_SENHA">
+    </div>
+
+    <label for="texto">O que voce quer?</label>
+    <textarea id="texto" placeholder="ex: quero um site de vendas rapido"></textarea>
+
+    <div class="exemplos" id="exemplos"></div>
+
+    <div class="barra">
+      <button class="principal" id="btn">Processar</button>
+      <span class="dica" id="dica">Ctrl+Enter envia</span>
+      <span class="dica" id="count">0 / 8000</span>
+    </div>
   </div>
 
-  <div id="areaSenha" hidden>
-    <label for="senha">Senha de acesso</label>
-    <input id="senha" type="password" autocomplete="current-password" placeholder="senha definida em ACESSO_SENHA">
-  </div>
-
-  <label for="texto">O que voce quer?</label>
-  <textarea id="texto" placeholder="ex: quero um site de vendas rapido"></textarea>
-  <div class="row">
-    <button id="btn">Processar</button>
-    <span class="count" id="count">0 / 8000</span>
-  </div>
-
-  <div id="status"></div>
+  <div id="progresso"></div>
   <div id="saida"></div>
 
   <footer>
-    API: <code>POST /processar</code> &middot; <a href="/api">indice JSON</a> &middot; <a href="/health">health</a>
+    <a href="/api">API</a> &middot; <a href="/health">health</a> &middot;
+    <code>POST /processar</code> para integrar, <code>/processar/stream</code> para progresso ao vivo
   </footer>
 </div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const texto = $("texto"), btn = $("btn"), count = $("count"), status = $("status"), saida = $("saida");
-const senha = $("senha"), areaSenha = $("areaSenha");
-const LIMITE = 8000;
-const GUARDA = "pipeline-ia-dupla:senha";
+const texto = $("texto"), btn = $("btn"), count = $("count"), progresso = $("progresso"),
+      saida = $("saida"), senha = $("senha"), areaSenha = $("areaSenha");
+const LIMITE = 8000, GUARDA = "pipeline-ia-dupla:senha";
+const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
-// O campo de senha so aparece se o servidor exigir. Um 401 ja revelaria isso,
-// entao perguntar ao /api nao expoe nada novo.
+const EXEMPLOS = [
+  "quero um site de vendas rapido",
+  "preciso organizar minhas financas",
+  "como divulgo meu negocio local",
+  "quero automatizar meus relatorios",
+];
+$("exemplos").innerHTML = EXEMPLOS.map((e) => '<button class="chip">' + esc(e) + "</button>").join("");
+$("exemplos").addEventListener("click", (ev) => {
+  if (!ev.target.classList.contains("chip")) return;
+  texto.value = ev.target.textContent;
+  texto.dispatchEvent(new Event("input"));
+  texto.focus();
+});
+
+texto.addEventListener("input", () => {
+  const n = texto.value.trim().length;
+  count.textContent = n + " / " + LIMITE;
+  count.className = "dica" + (n > LIMITE ? " over" : "");
+});
+
+// O campo de senha so aparece se o servidor exigir. Um 401 ja revelaria isso.
 (async () => {
   try {
-    const r = await fetch("/api");
-    const j = await r.json();
+    const j = await (await fetch("/api")).json();
     if (j.requer_senha) {
       areaSenha.hidden = false;
       try { senha.value = localStorage.getItem(GUARDA) || ""; } catch {}
     }
   } catch {}
 })();
-
-const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-
-texto.addEventListener("input", () => {
-  const n = texto.value.trim().length;
-  count.textContent = n + " / " + LIMITE;
-  count.className = "count" + (n > LIMITE ? " over" : "");
-});
 
 // Markdown minimo: a IA 2 responde em markdown, e exibir cru fica ilegivel.
 function render(md) {
@@ -163,70 +256,157 @@ function render(md) {
   return html;
 }
 
-let cron = null;
-function aguardando(t0) {
+function cartao(titulo, corpo, meta, texto_para_copiar) {
+  const id = "c" + Math.random().toString(36).slice(2, 8);
+  const etiquetas = (meta || []).map((m) => "<span>" + esc(m) + "</span>").join("");
+  return '<div class="painel resultado"><div class="cab"><h2>' + esc(titulo) + "</h2>" +
+    '<button class="copiar" data-copia="' + id + '">copiar</button></div>' +
+    corpo + '<textarea id="' + id + '" hidden>' + esc(texto_para_copiar) + "</textarea>" +
+    (etiquetas ? '<div class="rodape-card">' + etiquetas + "</div>" : "") + "</div>";
+}
+
+document.addEventListener("click", async (ev) => {
+  const b = ev.target.closest(".copiar");
+  if (!b) return;
+  const alvo = document.getElementById(b.dataset.copia);
+  try {
+    await navigator.clipboard.writeText(alvo.value);
+    b.textContent = "copiado"; b.classList.add("ok");
+    setTimeout(() => { b.textContent = "copiar"; b.classList.remove("ok"); }, 1600);
+  } catch { b.textContent = "falhou"; }
+});
+
+// ---- Trilha de progresso ----
+const ETAPAS = { otimizacao: "IA 1 &middot; reescrevendo seu pedido", execucao: "IA 2 &middot; executando o prompt" };
+let estado, t0, cron, avisos;
+
+function pintarTrilha() {
   const s = Math.round((Date.now() - t0) / 1000);
-  let aviso = "";
-  if (s > 45) aviso = " O servico pode ter hibernado, ou a API do Gemini devolveu 503 e as tentativas automaticas estao rodando.";
-  else if (s > 15) aviso = " A IA 2 esta gerando a resposta.";
-  status.innerHTML = '<div class="note"><span class="spin"></span>Processando ha ' + s + "s." + aviso + "</div>";
+  const linha = (chave, n) => {
+    const e = estado[chave];
+    const det = e.estado === "feita" ? "concluida em " + (e.ms / 1000).toFixed(1) + "s"
+      : e.estado === "ativa" ? (chave === "otimizacao" ? "costuma levar poucos segundos" : "a parte demorada; pode passar de um minuto")
+      : "aguardando";
+    return '<div class="etapa" data-estado="' + e.estado + '"><div class="bolha">' +
+      (e.estado === "feita" ? "&#10003;" : n) + '</div><div class="txt"><div class="nome">' + ETAPAS[chave] +
+      '</div><div class="det">' + det + "</div></div>" +
+      (e.estado === "ativa" ? '<div class="tempo">' + s + "s</div>" : "") + "</div>";
+  };
+  progresso.innerHTML = '<div class="painel"><div class="trilha">' + linha("otimizacao", 1) + linha("execucao", 2) + "</div>" +
+    avisos.map((a) => '<div class="aviso">' + a + "</div>").join("") + "</div>";
+}
+
+function iniciarTrilha() {
+  estado = { otimizacao: { estado: "espera" }, execucao: { estado: "espera" } };
+  avisos = []; t0 = Date.now();
+  pintarTrilha();
+  cron = setInterval(pintarTrilha, 1000);
+}
+
+function tratarEvento(ev, dados) {
+  if (ev.tipo === "etapa") {
+    if (ev.estado === "inicio") estado[ev.etapa].estado = "ativa";
+    if (ev.estado === "fim") {
+      estado[ev.etapa] = { estado: "feita", ms: ev.latency_ms };
+      if (ev.etapa === "otimizacao") {
+        dados.prompt = ev.prompt_otimizado;
+        // Aparece assim que existe, sem esperar a IA 2.
+        saida.innerHTML = cartao("Prompt gerado pela IA 1", '<pre class="prompt">' + esc(ev.prompt_otimizado) + "</pre>",
+          [ev.model, (ev.latency_ms / 1000).toFixed(1) + "s"], ev.prompt_otimizado);
+      }
+    }
+    pintarTrilha();
+  } else if (ev.tipo === "retry") {
+    avisos.push("A API do Gemini respondeu <strong>" + ev.status + "</strong> na etapa de " + esc(ev.etapa) +
+      " (tentativa " + ev.tentativa + " de " + ev.total + "). Tentando de novo &mdash; e por isso que esta demorando.");
+    pintarTrilha();
+  }
 }
 
 btn.addEventListener("click", async () => {
   const t = texto.value.trim();
-  if (!t) { status.innerHTML = '<div class="err">Escreva alguma coisa primeiro.</div>'; return; }
-  if (t.length > LIMITE) { status.innerHTML = '<div class="err">Texto acima do limite de ' + LIMITE + " caracteres.</div>"; return; }
+  if (!t) { progresso.innerHTML = '<div class="erro">Escreva alguma coisa primeiro.</div>'; return; }
+  if (t.length > LIMITE) { progresso.innerHTML = '<div class="erro">Texto acima do limite de ' + LIMITE + " caracteres.</div>"; return; }
 
-  btn.disabled = true;
-  saida.innerHTML = "";
-  const t0 = Date.now();
-  aguardando(t0);
-  cron = setInterval(() => aguardando(t0), 1000);
+  btn.disabled = true; saida.innerHTML = "";
+  iniciarTrilha();
+  const dados = {};
+
+  const falhar = (titulo, detalhe) => {
+    clearInterval(cron);
+    progresso.innerHTML = '<div class="erro"><strong>' + esc(titulo) + "</strong>" + (detalhe ? "<br>" + detalhe : "") + "</div>";
+  };
 
   try {
     const cabecalhos = { "Content-Type": "application/json" };
     if (!areaSenha.hidden && senha.value) cabecalhos["x-senha"] = senha.value;
 
-    const r = await fetch("/processar", {
-      method: "POST",
-      headers: cabecalhos,
-      body: JSON.stringify({ texto: t }),
+    const r = await fetch("/processar/stream", {
+      method: "POST", headers: cabecalhos, body: JSON.stringify({ texto: t }),
     });
-    const j = await r.json();
-    clearInterval(cron);
 
     if (r.status === 401) {
       areaSenha.hidden = false;
       try { localStorage.removeItem(GUARDA); } catch {}
       senha.focus();
-      status.innerHTML = '<div class="err"><strong>' + esc((j.erro || {}).mensagem || "Senha incorreta.") +
-        "</strong><br>O valor precisa bater com a variavel <code>ACESSO_SENHA</code> do servidor.</div>";
-      return;
+      const j = await r.json().catch(() => ({}));
+      return falhar((j.erro || {}).mensagem || "Senha incorreta.",
+        "O valor precisa bater com a variavel <code>ACESSO_SENHA</code> do servidor.");
     }
-
     if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
       const e = j.erro || {};
-      status.innerHTML = '<div class="err"><strong>' + esc(e.mensagem || "A requisicao falhou.") + "</strong><br><code>" +
-        esc(e.codigo || r.status) + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code></div>";
-      return;
+      return falhar(e.mensagem || "A requisicao falhou.", "<code>" + esc(e.codigo || r.status) + "</code>");
     }
 
-    // So guarda depois de a senha ser aceita, para nao persistir valor errado.
     if (!areaSenha.hidden && senha.value) {
       try { localStorage.setItem(GUARDA, senha.value); } catch {}
     }
 
-    const seg = ((Date.now() - t0) / 1000).toFixed(1);
-    status.innerHTML = '<div class="note">Pronto em ' + seg + "s.</div>";
-    const m = j.meta || {};
-    const linha = (e) => e ? '<div class="meta"><span>' + esc(e.model) + "</span><span>" + Math.round(e.latency_ms / 1000) + "s</span></div>" : "";
-    saida.innerHTML =
-      '<div class="card"><h2>Resposta final &middot; IA 2</h2><div class="out">' + render(j.resposta_final) + "</div>" + linha(m.execucao) + "</div>" +
-      '<div class="card"><h2>Prompt gerado pela IA 1 &middot; auditoria</h2><pre class="prompt">' + esc(j.prompt_otimizado) + "</pre>" + linha(m.otimizacao) + "</div>";
+    // SSE via fetch: os chunks podem partir um evento no meio, entao acumula
+    // e so consome ate o ultimo separador completo.
+    const leitor = r.body.getReader();
+    const dec = new TextDecoder();
+    let buffer = "", finalizou = false;
+
+    while (true) {
+      const { value, done } = await leitor.read();
+      if (done) break;
+      buffer += dec.decode(value, { stream: true });
+      const partes = buffer.split("\n\n");
+      buffer = partes.pop();
+      for (const parte of partes) {
+        const linha = parte.split("\n").find((l) => l.startsWith("data: "));
+        if (!linha) continue;
+        const ev = JSON.parse(linha.slice(6));
+
+        if (ev.tipo === "fim") {
+          finalizou = true;
+          clearInterval(cron);
+          estado.execucao = { estado: "feita", ms: ev.meta.execucao.latency_ms };
+          pintarTrilha();
+          const m = ev.meta;
+          saida.innerHTML =
+            cartao("Resposta final · IA 2", '<div class="out">' + render(ev.resposta_final) + "</div>",
+              [m.execucao.model, (m.execucao.latency_ms / 1000).toFixed(1) + "s",
+               m.execucao.usage.candidates_tokens + " tokens"], ev.resposta_final) +
+            cartao("Prompt gerado pela IA 1", '<pre class="prompt">' + esc(ev.prompt_otimizado) + "</pre>",
+              [m.otimizacao.model, (m.otimizacao.latency_ms / 1000).toFixed(1) + "s"], ev.prompt_otimizado);
+        } else if (ev.tipo === "erro") {
+          finalizou = true;
+          const e = ev.erro || {};
+          falhar(e.mensagem || "O pipeline falhou.",
+            "<code>" + esc(e.codigo || "erro") + (e.etapa ? " &middot; etapa: " + esc(e.etapa) : "") + "</code>");
+        } else {
+          tratarEvento(ev, dados);
+        }
+      }
+    }
+    if (!finalizou) falhar("A conexao caiu antes de o pipeline terminar.", "Tente de novo.");
   } catch (e) {
-    clearInterval(cron);
-    status.innerHTML = '<div class="err">Nao foi possivel falar com o servidor: ' + esc(e.message) + "</div>";
+    falhar("Nao foi possivel falar com o servidor.", esc(e.message));
   } finally {
+    clearInterval(cron);
     btn.disabled = false;
   }
 });

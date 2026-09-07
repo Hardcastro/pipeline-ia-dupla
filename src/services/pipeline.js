@@ -107,7 +107,7 @@ function esperar(ms) {
  * experiencing high demand" (503) e comum o bastante para derrubar o pipeline
  * em uso normal.
  */
-async function comRetry(fn, stage) {
+async function comRetry(fn, stage, notificar = () => {}) {
   let ultimoErro;
 
   for (let tentativa = 0; tentativa <= config.retry.attempts; tentativa += 1) {
@@ -124,6 +124,14 @@ async function comRetry(fn, stage) {
         `[retry] ${stage}: ${error.status} na tentativa ${tentativa + 1}/` +
           `${config.retry.attempts + 1}, nova tentativa em ${Math.round(espera)}ms`,
       );
+      notificar({
+        tipo: "retry",
+        etapa: stage,
+        status: error.status,
+        tentativa: tentativa + 1,
+        total: config.retry.attempts + 1,
+        espera_ms: Math.round(espera),
+      });
       await esperar(espera);
     }
   }
@@ -144,7 +152,7 @@ function timeoutSignal() {
  * @param {string} userInput texto bruto do usuario
  * @returns {Promise<{ prompt: string, model: string, usage: object }>}
  */
-export async function optimizePrompt(userInput) {
+export async function optimizePrompt(userInput, notificar = () => {}) {
   const stage = "otimizacao";
 
   const response = await comRetry(() => gemini.models.generateContent({
@@ -159,7 +167,7 @@ export async function optimizePrompt(userInput) {
       responseJsonSchema: OPTIMIZER_OUTPUT_SCHEMA,
       abortSignal: timeoutSignal(),
     },
-  }), stage);
+  }), stage, notificar);
 
   assertUsableResponse(response, stage);
 
@@ -193,7 +201,7 @@ export async function optimizePrompt(userInput) {
  * @param {string} optimizedPrompt saida da IA 1
  * @returns {Promise<{ text: string, model: string, usage: object }>}
  */
-export async function executeTask(optimizedPrompt) {
+export async function executeTask(optimizedPrompt, notificar = () => {}) {
   const stage = "execucao";
 
   const response = await comRetry(() => gemini.models.generateContent({
@@ -205,7 +213,7 @@ export async function executeTask(optimizedPrompt) {
       thinkingConfig: config.executor.thinking,
       abortSignal: timeoutSignal(),
     },
-  }), stage);
+  }), stage, notificar);
 
   assertUsableResponse(response, stage);
 
@@ -226,13 +234,26 @@ export async function executeTask(optimizedPrompt) {
  * @param {string} texto
  * @returns {Promise<{ prompt_otimizado: string, resposta_final: string, meta: object }>}
  */
-export async function runPipeline(texto) {
+export async function runPipeline(texto, notificar = () => {}) {
   const startedAt = Date.now();
 
-  const optimized = await optimizePrompt(texto);
+  notificar({ tipo: "etapa", etapa: "otimizacao", estado: "inicio" });
+  const optimized = await optimizePrompt(texto, notificar);
   const optimizedAt = Date.now();
 
-  const executed = await executeTask(optimized.prompt);
+  // O prompt sai na hora: em uma espera de minutos, faz diferenca ver o
+  // resultado da IA 1 assim que ele existe, em vez de so no final.
+  notificar({
+    tipo: "etapa",
+    etapa: "otimizacao",
+    estado: "fim",
+    prompt_otimizado: optimized.prompt,
+    model: optimized.model,
+    latency_ms: optimizedAt - startedAt,
+  });
+
+  notificar({ tipo: "etapa", etapa: "execucao", estado: "inicio" });
+  const executed = await executeTask(optimized.prompt, notificar);
   const finishedAt = Date.now();
 
   return {

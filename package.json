@@ -1,7 +1,7 @@
 {
   "name": "pipeline-ia-dupla",
   "version": "1.0.0",
-  "description": "API Express com pipeline de duas IAs: otimizacao de prompt (IA 1) + execucao (IA 2), via API do Google Gemini.",
+  "description": "API Express + interface web para um pipeline de duas IAs Gemini: a primeira reescreve o pedido do usuario como prompt tecnico, a segunda executa.",
   "type": "module",
   "main": "src/index.js",
   "engines": {
@@ -15,5 +15,27 @@
     "@google/genai": "^2.21.0",
     "dotenv": "^16.4.5",
     "express": "^4.19.2"
+  },
+  "keywords": [
+    "gemini",
+    "google-genai",
+    "express",
+    "nodejs",
+    "prompt-engineering",
+    "llm",
+    "sse",
+    "server-sent-events",
+    "api",
+    "docker"
+  ],
+  "author": "Gabriel Castro Barreto",
+  "license": "MIT",
+  "homepage": "https://pipeline-ia-dupla.onrender.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hardcastro/pipeline-ia-dupla.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hardcastro/pipeline-ia-dupla/issues"
   }
 }

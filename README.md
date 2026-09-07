@@ -2,9 +2,7 @@
 
 **Uma IA reescreve o seu pedido. Outra executa.** O usuario escreve *"quero um site de vendas rapido"* e recebe um plano tecnico completo — porque entre ele e o modelo final existe uma camada que transforma o pedido vago em um prompt estruturado.
 
-🔗 **[Ver funcionando](https://pipeline-ia-dupla.onrender.com)** &nbsp;·&nbsp; Node.js + Express + Google Gemini &nbsp;·&nbsp; [MIT](LICENSE)
-
-> Instancia gratuita no Render: se estiver hibernando, a primeira chamada leva ~50s a mais.
+Node.js + Express + Google Gemini &nbsp;·&nbsp; interface web incluida &nbsp;·&nbsp; [MIT](LICENSE)
 
 ---
 
@@ -61,7 +59,9 @@ O pipeline leva de 10s a alguns minutos. Em vez de um spinner generico, um strea
 
 ## O que a medicao mostrou
 
-Numeros reais, colhidos em producao — e que contrariaram hipoteses minhas pelo caminho:
+Numeros colhidos em uma instancia real do projeto, em plano gratuito de uma
+plataforma de container — e que contrariaram hipoteses do proprio autor pelo
+caminho:
 
 | Achado | Numero |
 |---|---|
@@ -115,7 +115,7 @@ Sem framework de front, sem etapa de build: um arquivo HTML servido pelo proprio
 | `GET /health` | liveness probe, nao consome a API do Gemini |
 
 ```bash
-curl -X POST https://pipeline-ia-dupla.onrender.com/processar \
+curl -X POST http://localhost:3000/processar \
   -H 'Content-Type: application/json' \
   -H 'x-senha: SUA_SENHA' \
   -d '{"texto":"quero um site de vendas rapido"}'
@@ -168,7 +168,7 @@ Formato unico: `{ "erro": { "codigo", "mensagem", "etapa", "detalhes" } }`
 Requer Node 20+.
 
 ```bash
-git clone https://github.com/Hardcastro/pipeline-ia-dupla.git
+git clone <url-do-repositorio>
 cd pipeline-ia-dupla
 npm install
 cp .env.example .env    # preencha GEMINI_API_KEY
@@ -202,14 +202,23 @@ O controle de raciocinio mudou entre geracoes do Gemini, e `config.js` aceita as
 
 ## Deploy
 
-Em producao no Render (plano gratuito, runtime Docker, auto-deploy da branch `main`). O `Dockerfile` serve qualquer plataforma de container:
+O `Dockerfile` serve qualquer plataforma de container. Plataformas que leem
+repositorios Node tambem sobem o projeto direto, com `npm install` + `npm start`;
+em qualquer caso, injete as variaveis de ambiente pela plataforma e **nunca
+comite o `.env`**.
 
 ```bash
 docker build -t pipeline-ia-dupla .
 docker run --rm -p 3000:3000 -e GEMINI_API_KEY=... pipeline-ia-dupla
 ```
 
-Nao fixe `PORT`: a plataforma injeta a dela (o Render usa 10000) e o `config.js` a le de `process.env`.
+Nao fixe `PORT`: a plataforma costuma injetar a dela, e o `config.js` a le de
+`process.env`. Fixar a porta faz o servico subir sem receber trafego — falha
+silenciosa, porque o processo sobe normalmente.
+
+> Planos gratuitos costumam hibernar apos inatividade, somando dezenas de
+> segundos a primeira chamada. `GET /health` acorda o servico sem consumir a API
+> do Gemini.
 
 ---
 

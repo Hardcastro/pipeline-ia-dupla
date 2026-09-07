@@ -28,14 +28,5 @@
     "api",
     "docker"
   ],
-  "author": "Gabriel Castro Barreto",
-  "license": "MIT",
-  "homepage": "https://pipeline-ia-dupla.onrender.com",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Hardcastro/pipeline-ia-dupla.git"
-  },
-  "bugs": {
-    "url": "https://github.com/Hardcastro/pipeline-ia-dupla/issues"
-  }
+  "license": "MIT"
 }

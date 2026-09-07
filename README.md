@@ -207,6 +207,89 @@ EXECUTOR_THINKING=4096
 No ar em <https://pipeline-ia-dupla.onrender.com> (Render, plano free, regiao Oregon,
 runtime Docker, branch `main` com auto-deploy).
 
+### Latencia: o gargalo sao os 503, nao o modelo
+
+Medicoes de 2026-09-06, mesma entrada, `gemini-3.1-flash-lite` nas duas camadas:
+
+| Execucao | IA 1 | IA 2 |
+|---|---|---|
+| 1 | 3,1s | 9,0s |
+| 2 | 3,6s | 21,8s |
+| 3 | 2,8s | 42,8s |
+| 4 | 2,5s | 201,7s |
+
+A IA 2 varia mais de 20x. **Nao e o modelo:** a IA 1 usa exatamente o mesmo
+modelo, no mesmo processo e na mesma requisicao, e fica entre 2,5s e 3,6s. Trocar
+o modelo da IA 2 (de `gemini-3.5-flash` para `gemini-3.1-flash-lite`) melhorou o
+melhor caso e piorou o pior — sem ganho liquido demonstravel.
+
+A causa esta nos logs:
+
+```
+05:28:18  [retry] execucao: 503 na tentativa 1/4, nova tentativa em 862ms
+05:29:19  [retry] execucao: 503 na tentativa 2/4, nova tentativa em 2671ms
+05:30:09  [retry] execucao: 503 na tentativa 3/4, nova tentativa em 4290ms
+```
+
+Entre as tentativas passam ~61s, mas o backoff programado era de 862ms: **cada
+tentativa fracassada fica pendurada cerca de um minuto antes de retornar 503.**
+O custo esta na API do Gemini demorando para falhar, nao no backoff. As quatro
+execucoes retornaram 200 — o retry esta absorvendo as falhas, so que caro.
+
+O que diferencia a IA 2 da IA 1 e `thinkingLevel: HIGH` contra `LOW` e um volume
+de saida bem maior; geracoes longas ficam mais expostas a fila do servidor.
+
+### Licao para quem for mexer nisso
+
+Um benchmark local de disponibilidade mede o momento, nao uma propriedade estavel
+do modelo. Na sondagem inicial `gemini-3.5-flash` falhou 4 de 9 vezes e
+`gemini-3.1-flash-lite` acertou 3 de 3 — o que levou a uma troca que nao se
+sustentou em producao. Antes de atribuir latencia a escolha de modelo, **cheque
+as linhas `[retry]` nos logs do Render**: elas dizem se o tempo foi gasto
+gerando ou esperando falhar.
+
+### Alavancas, se a latencia incomodar
+
+Nenhuma delas e trocar de modelo:
+
+- `RETRY_ATTEMPTS=2` limita o pior caso (~130s em vez de ~200s), aceitando falhar mais.
+- `EXECUTOR_THINKING=medium` reduz os tokens gerados, e portanto a exposicao. Nao testado em producao.
+- Plano pago, que remove a hibernacao e o teto de 0.1 CPU.
+
+> O plano free hiberna apos inatividade: a primeira chamada depois disso soma
+> ~50s de cold start. `GET /health` acorda o servico sem consumir a API do Gemini.
+
+## Decisoes de implementacao
+
+- **Saida da IA 1 forcada por schema:** em vez de confiar na instrucao "retorne
+  exclusivamente o prompt" e depois limpar saudacoes com regex, a chamada usa
+  `responseMimeType: "application/json"` + `responseJsonSchema` com um unico
+  campo. O modelo nao consegue emitir preambulo. Ha fallback para o texto cru
+  caso o parse falhe.
+- **Blindagem contra injecao:** o texto do usuario chega envelopado em
+  `<texto_do_usuario>` e a system instruction declara que aquele conteudo e dado,
+  nao instrucao — inclusive quando contem frases como "ignore as instrucoes acima".
+- **Bloqueio verificado nos dois pontos:** o Gemini barra conteudo tanto na
+  entrada (`promptFeedback.blockReason`) quanto durante a geracao
+  (`candidates[0].finishReason`), ambos com HTTP 200. O pipeline checa os dois
+  antes de ler o texto, para nao devolver resposta vazia silenciosa.
+- **Retry com backoff:** a API do Gemini responde 503 "high demand" com
+  frequencia em uso normal, e o SDK nao tem retry proprio. Ambas as camadas
+  repetem em 500/502/503/504 com backoff exponencial + jitter
+  (`RETRY_ATTEMPTS`, `RETRY_BASE_DELAY_MS`). **429 fica de fora de proposito:**
+  na pratica significa cota esgotada, e insistir so queima mais cota.
+  Cada tentativa carrega o proprio `REQUEST_TIMEOUT_MS`, entao o pior caso de
+  tempo total e aproximadamente `attempts x timeout` — reduza `RETRY_ATTEMPTS`
+  se precisar de um teto de latencia mais apertado.
+- **Timeout explicito:** cada chamada leva um `abortSignal` de
+  `REQUEST_TIMEOUT_MS`, para que uma geracao travada nao segure a conexao HTTP
+  indefinidamente.
+
+## Producao
+
+No ar em <https://pipeline-ia-dupla.onrender.com> (Render, plano free, regiao Oregon,
+runtime Docker, branch `main` com auto-deploy).
+
 Latencia medida em 2026-09-05, mesma entrada:
 
 | Ambiente | IA 1 | IA 2 | Total |

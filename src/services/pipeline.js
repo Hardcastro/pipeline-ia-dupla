@@ -196,7 +196,10 @@ export async function optimizePrompt(userInput, notificar = () => {}) {
 
 /**
  * Camada de Execucao (IA 2).
- * Recebe o prompt ja otimizado e produz a resposta final.
+ *
+ * Recebe o prompt ja otimizado e produz a resposta final. Consome a resposta
+ * em stream: o texto sai em pedacos por `notificar`, para a interface exibir
+ * enquanto gera, e a chamada nao fica presa em uma unica resposta longa.
  *
  * @param {string} optimizedPrompt saida da IA 1
  * @returns {Promise<{ text: string, model: string, usage: object }>}
@@ -204,20 +207,48 @@ export async function optimizePrompt(userInput, notificar = () => {}) {
 export async function executeTask(optimizedPrompt, notificar = () => {}) {
   const stage = "execucao";
 
-  const response = await comRetry(() => gemini.models.generateContent({
-    model: config.executor.model,
-    contents: optimizedPrompt,
-    config: {
-      systemInstruction: EXECUTOR_SYSTEM_PROMPT,
-      maxOutputTokens: config.executor.maxOutputTokens,
-      thinkingConfig: config.executor.thinking,
-      abortSignal: timeoutSignal(),
-    },
-  }), stage, notificar);
+  const bruto = await comRetry(async () => {
+    const stream = await gemini.models.generateContentStream({
+      model: config.executor.model,
+      contents: optimizedPrompt,
+      config: {
+        systemInstruction: EXECUTOR_SYSTEM_PROMPT,
+        maxOutputTokens: config.executor.maxOutputTokens,
+        thinkingConfig: config.executor.thinking,
+        abortSignal: timeoutSignal(),
+      },
+    });
 
-  assertUsableResponse(response, stage);
+    // O texto sai em pedacos conforme o modelo gera. Os metadados de uso e o
+    // finishReason so aparecem no ultimo chunk; o promptFeedback, no primeiro.
+    let texto = "";
+    let primeiro = null;
+    let ultimo = null;
 
-  const text = (response.text ?? "").trim();
+    for await (const chunk of stream) {
+      primeiro ??= chunk;
+      ultimo = chunk;
+      const pedaco = chunk.text ?? "";
+      if (pedaco) {
+        texto += pedaco;
+        notificar({ tipo: "delta", etapa: stage, texto: pedaco });
+      }
+    }
+
+    return {
+      texto,
+      // Formato que assertUsableResponse espera, remontado do stream.
+      resposta: {
+        promptFeedback: primeiro?.promptFeedback,
+        candidates: ultimo?.candidates,
+        usageMetadata: ultimo?.usageMetadata,
+      },
+    };
+  }, stage, notificar);
+
+  assertUsableResponse(bruto.resposta, stage);
+
+  const text = bruto.texto.trim();
   if (text === "") {
     throw new PipelineError("A IA de execucao devolveu uma resposta vazia.", {
       stage,
@@ -225,7 +256,7 @@ export async function executeTask(optimizedPrompt, notificar = () => {}) {
     });
   }
 
-  return { text, model: config.executor.model, usage: summarizeUsage(response) };
+  return { text, model: config.executor.model, usage: summarizeUsage(bruto.resposta) };
 }
 
 /**

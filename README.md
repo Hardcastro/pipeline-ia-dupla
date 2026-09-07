@@ -101,6 +101,7 @@ fluxo de eventos `data: {...}`:
 |---|---|---|
 | `etapa` | inicio/fim de cada camada | na `otimizacao` com `estado: "fim"`, ja vem o `prompt_otimizado` |
 | `retry` | um 503 disparou nova tentativa | `status`, `tentativa`, `total`, `espera_ms` |
+| `delta` | pedaco de texto da IA 2 | `texto` — concatene na ordem |
 | `fim` | pipeline concluido | o mesmo corpo de `POST /processar` |
 | `erro` | falhou depois do stream aberto | `codigo`, `mensagem`, `etapa` |
 
@@ -110,7 +111,27 @@ Gemini devolve 503. Erros de validacao do corpo continuam voltando como JSON com
 status, porque acontecem antes de o stream abrir.
 
 `POST /processar` segue inalterado para integracoes que preferem uma resposta
-unica.
+unica — internamente ele tambem consome a IA 2 em stream, o que evita prender a
+chamada em uma unica resposta longa.
+
+> **`delta` e retry:** uma nova tentativa recomeca a geracao do zero. Ao receber
+> um `retry` da etapa `execucao`, descarte o texto acumulado ate ali — e o que a
+> interface faz — senao a resposta sai duplicada.
+
+### `POST /otimizar` e `POST /executar/stream`
+
+As duas camadas separadas, para quem quer revisar o meio do caminho.
+`/otimizar` recebe `{texto}` e devolve so o `prompt_otimizado` (JSON, ~5s).
+`/executar/stream` recebe `{prompt}` — editado ou nao — e roda so a IA 2, em
+SSE com os mesmos eventos.
+
+E o que a interface usa quando "Revisar o prompt antes de executar" esta
+marcado. O efeito e real: em teste, acrescentar "responda em exatamente 3
+bullets curtos" ao prompt gerado produziu 678 caracteres em 3 bullets, contra
+4774 caracteres da mesma entrada sem edicao.
+
+O limite de `prompt` e 4x o de `texto`, porque aqui ja e um prompt tecnico
+expandido, naturalmente maior que o pedido cru.
 
 ### `GET /api`
 
